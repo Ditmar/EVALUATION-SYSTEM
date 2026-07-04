@@ -69,10 +69,30 @@ export function AttemptGradingView({
 }) {
   const [localQuestions, setLocalQuestions] = useState(questions);
 
-  function handleGraded(answerId: string, manualScore: number, teacherComment: string | null) {
+  function handleGraded(
+    questionId: string,
+    answer: { id: string; manualScore: number; teacherComment: string | null }
+  ) {
     setLocalQuestions((prev) =>
       prev.map((q) =>
-        q.answer?.id === answerId ? { ...q, answer: { ...q.answer!, manualScore, teacherComment } } : q
+        q.id === questionId
+          ? {
+              ...q,
+              answer: q.answer
+                ? { ...q.answer, manualScore: answer.manualScore, teacherComment: answer.teacherComment }
+                : {
+                    id: answer.id,
+                    selectedOption: null,
+                    selectedOptions: null,
+                    codeAnswer: null,
+                    isCorrect: null,
+                    autoScore: null,
+                    manualScore: answer.manualScore,
+                    teacherComment: answer.teacherComment,
+                    aiEvaluations: [],
+                  },
+            }
+          : q
       )
     );
   }
@@ -160,6 +180,7 @@ export function AttemptGradingView({
             <CodeAnswerGrader
               examId={examId}
               attemptId={attempt.id}
+              questionId={q.id}
               answerId={q.answer?.id ?? null}
               language={q.language ?? "javascript"}
               studentCode={q.answer?.codeAnswer ?? ""}

@@ -19,6 +19,7 @@ interface AiEvaluation {
 interface Props {
   examId: string;
   attemptId: string;
+  questionId: string;
   answerId: string | null;
   language: string;
   studentCode: string;
@@ -29,12 +30,16 @@ interface Props {
   teacherComment: string | null;
   enableAiEvaluation: boolean;
   aiEvaluations: AiEvaluation[];
-  onGraded: (answerId: string, manualScore: number, teacherComment: string | null) => void;
+  onGraded: (
+    questionId: string,
+    answer: { id: string; manualScore: number; teacherComment: string | null }
+  ) => void;
 }
 
 export function CodeAnswerGrader({
   examId,
   attemptId,
+  questionId,
   answerId,
   language,
   studentCode,
@@ -55,7 +60,6 @@ export function CodeAnswerGrader({
   const [aiEvaluations, setAiEvaluations] = useState(initialAiEvaluations);
 
   async function handleSaveScore() {
-    if (!answerId) return;
     const parsedScore = Number(score);
     if (Number.isNaN(parsedScore) || parsedScore < 0 || parsedScore > maxPoints) {
       showToast(`El puntaje debe estar entre 0 y ${maxPoints}.`, "error");
@@ -67,16 +71,21 @@ export function CodeAnswerGrader({
       const res = await fetch(`/api/admin/exams/${examId}/attempts/${attemptId}/grade`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answerId, manualScore: parsedScore, teacherComment: comment }),
+        body: JSON.stringify({ questionId, manualScore: parsedScore, teacherComment: comment }),
       });
 
+      const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         showToast(data.error ?? "No se pudo guardar el puntaje.", "error");
         return;
       }
 
-      onGraded(answerId, parsedScore, comment || null);
+      onGraded(questionId, {
+        id: data.answer.id,
+        manualScore: parsedScore,
+        teacherComment: comment || null,
+      });
       showToast("Puntaje guardado.", "success");
     } finally {
       setSaving(false);
@@ -132,7 +141,7 @@ export function CodeAnswerGrader({
         <div className="rounded-lg border border-brand-100 bg-brand-50 p-3">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-brand-800">Evaluación con IA (sugerencia, no definitiva)</p>
-            <Button variant="secondary" onClick={handleAiEvaluate} disabled={evaluating}>
+            <Button variant="secondary" onClick={handleAiEvaluate} disabled={evaluating || !answerId}>
               {evaluating ? "Evaluando..." : "Evaluar con IA"}
             </Button>
           </div>
@@ -183,7 +192,7 @@ export function CodeAnswerGrader({
             className="w-32"
           />
         </div>
-        <Button onClick={handleSaveScore} disabled={saving || !answerId}>
+        <Button onClick={handleSaveScore} disabled={saving}>
           {saving ? "Guardando..." : "Guardar puntaje"}
         </Button>
       </div>

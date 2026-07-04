@@ -5,7 +5,7 @@ import { requireAdminSession } from "@/lib/auth/require-admin";
 import { computeTotalScore } from "@/lib/grading/totals";
 
 const GradeSchema = z.object({
-  answerId: z.string().min(1),
+  questionId: z.string().min(1),
   manualScore: z.number().min(0),
   teacherComment: z.string().trim().max(5000).optional().nullable(),
 });
@@ -30,24 +30,41 @@ export async function PATCH(
     return NextResponse.json({ error: "Examen no encontrado." }, { status: 404 });
   }
 
-  const answer = await prisma.answer.findFirst({
-    where: { id: parsed.data.answerId, attemptId: params.attemptId },
-    include: { question: true },
+  const attempt0 = await prisma.examAttempt.findFirst({
+    where: { id: params.attemptId, examId: exam.id },
   });
-  if (!answer) {
-    return NextResponse.json({ error: "Respuesta no encontrada." }, { status: 404 });
+  if (!attempt0) {
+    return NextResponse.json({ error: "Intento no encontrado." }, { status: 404 });
   }
 
-  if (parsed.data.manualScore > answer.question.points) {
+  const question = await prisma.question.findFirst({
+    where: { id: parsed.data.questionId, examId: exam.id },
+  });
+  if (!question) {
+    return NextResponse.json({ error: "Pregunta no encontrada." }, { status: 404 });
+  }
+
+  if (parsed.data.manualScore > question.points) {
     return NextResponse.json(
-      { error: `El puntaje no puede superar el máximo de la pregunta (${answer.question.points}).` },
+      { error: `El puntaje no puede superar el máximo de la pregunta (${question.points}).` },
       { status: 400 }
     );
   }
 
-  const updatedAnswer = await prisma.answer.update({
-    where: { id: answer.id },
-    data: {
+  // Upsert: the student may never have saved an answer for this question (left
+  // it blank), in which case no Answer row exists yet. The teacher must still
+  // be able to grade it (typically with 0 points) rather than being stuck.
+  const updatedAnswer = await prisma.answer.upsert({
+    where: { attemptId_questionId: { attemptId: params.attemptId, questionId: question.id } },
+    create: {
+      attemptId: params.attemptId,
+      questionId: question.id,
+      manualScore: parsed.data.manualScore,
+      teacherComment: parsed.data.teacherComment || null,
+      gradedAt: new Date(),
+      gradedById: auth.session.userId,
+    },
+    update: {
       manualScore: parsed.data.manualScore,
       teacherComment: parsed.data.teacherComment || null,
       gradedAt: new Date(),
