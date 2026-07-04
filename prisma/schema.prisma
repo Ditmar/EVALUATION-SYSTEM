@@ -171,10 +171,11 @@ model Answer {
   selectedOptions Json?
   codeAnswer      String? @db.Text
 
-  isCorrect   Boolean?
-  autoScore   Float?
-  manualScore Float?
-  finalScore  Float?
+  isCorrect      Boolean?
+  autoScore      Float?
+  manualScore    Float?
+  finalScore     Float?
+  teacherComment String? @db.Text
 
   gradedAt   DateTime?
   gradedById String?

@@ -7,6 +7,7 @@ import { computeTotalScore } from "@/lib/grading/totals";
 const GradeSchema = z.object({
   answerId: z.string().min(1),
   manualScore: z.number().min(0),
+  teacherComment: z.string().trim().max(5000).optional().nullable(),
 });
 
 export async function PATCH(
@@ -48,6 +49,7 @@ export async function PATCH(
     where: { id: answer.id },
     data: {
       manualScore: parsed.data.manualScore,
+      teacherComment: parsed.data.teacherComment || null,
       gradedAt: new Date(),
       gradedById: auth.session.userId,
     },

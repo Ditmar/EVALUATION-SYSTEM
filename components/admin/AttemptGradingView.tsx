@@ -19,6 +19,7 @@ interface Answer {
   isCorrect: boolean | null;
   autoScore: number | null;
   manualScore: number | null;
+  teacherComment: string | null;
   aiEvaluations: { id: string; suggestedScore: number; feedback: string; model: string; createdAt: string }[];
 }
 
@@ -68,9 +69,11 @@ export function AttemptGradingView({
 }) {
   const [localQuestions, setLocalQuestions] = useState(questions);
 
-  function handleGraded(answerId: string, manualScore: number) {
+  function handleGraded(answerId: string, manualScore: number, teacherComment: string | null) {
     setLocalQuestions((prev) =>
-      prev.map((q) => (q.answer?.id === answerId ? { ...q, answer: { ...q.answer!, manualScore } } : q))
+      prev.map((q) =>
+        q.answer?.id === answerId ? { ...q, answer: { ...q.answer!, manualScore, teacherComment } } : q
+      )
     );
   }
 
@@ -164,6 +167,7 @@ export function AttemptGradingView({
               rubric={q.rubric}
               maxPoints={q.points}
               manualScore={q.answer?.manualScore ?? null}
+              teacherComment={q.answer?.teacherComment ?? null}
               enableAiEvaluation={q.enableAiEvaluation}
               aiEvaluations={q.answer?.aiEvaluations ?? []}
               onGraded={handleGraded}

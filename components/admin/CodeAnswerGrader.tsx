@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CodeEditor } from "@/components/CodeEditor";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { TextArea } from "@/components/ui/TextArea";
 import { Badge } from "@/components/ui/Badge";
 import { useToast } from "@/components/ui/ToastProvider";
 
@@ -25,9 +26,10 @@ interface Props {
   rubric: string | null;
   maxPoints: number;
   manualScore: number | null;
+  teacherComment: string | null;
   enableAiEvaluation: boolean;
   aiEvaluations: AiEvaluation[];
-  onGraded: (answerId: string, manualScore: number) => void;
+  onGraded: (answerId: string, manualScore: number, teacherComment: string | null) => void;
 }
 
 export function CodeAnswerGrader({
@@ -40,12 +42,14 @@ export function CodeAnswerGrader({
   rubric,
   maxPoints,
   manualScore,
+  teacherComment,
   enableAiEvaluation,
   aiEvaluations: initialAiEvaluations,
   onGraded,
 }: Props) {
   const { showToast } = useToast();
   const [score, setScore] = useState(manualScore?.toString() ?? "");
+  const [comment, setComment] = useState(teacherComment ?? "");
   const [saving, setSaving] = useState(false);
   const [evaluating, setEvaluating] = useState(false);
   const [aiEvaluations, setAiEvaluations] = useState(initialAiEvaluations);
@@ -63,7 +67,7 @@ export function CodeAnswerGrader({
       const res = await fetch(`/api/admin/exams/${examId}/attempts/${attemptId}/grade`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answerId, manualScore: parsedScore }),
+        body: JSON.stringify({ answerId, manualScore: parsedScore, teacherComment: comment }),
       });
 
       if (!res.ok) {
@@ -72,7 +76,7 @@ export function CodeAnswerGrader({
         return;
       }
 
-      onGraded(answerId, parsedScore);
+      onGraded(answerId, parsedScore, comment || null);
       showToast("Puntaje guardado.", "success");
     } finally {
       setSaving(false);
@@ -153,6 +157,19 @@ export function CodeAnswerGrader({
           )}
         </div>
       )}
+
+      <div>
+        <label className="label">Comentario para el estudiante (opcional)</label>
+        <TextArea
+          rows={3}
+          placeholder="Explica en qué se equivocó el estudiante o qué podría mejorar..."
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+        />
+        <p className="mt-1 text-xs text-slate-500">
+          Este comentario será visible para el estudiante junto con su resultado.
+        </p>
+      </div>
 
       <div className="flex items-end gap-3">
         <div>

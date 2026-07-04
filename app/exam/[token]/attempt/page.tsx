@@ -142,6 +142,12 @@ export default function ExamAttemptPage({ params }: { params: { token: string } 
           <p className="mt-2 text-slate-500">
             Tus respuestas fueron registradas correctamente. Puedes cerrar esta ventana.
           </p>
+          <a
+            href={`/exam/${params.token}/result`}
+            className="mt-4 inline-block text-sm font-medium text-brand-600 hover:underline"
+          >
+            Consultar mi resultado
+          </a>
         </div>
       </div>
     );
