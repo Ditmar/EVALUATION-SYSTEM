@@ -35,6 +35,7 @@ export function FinishedAttemptsTable({ examId, attempts }: { examId: string; at
                 <th className="py-2 pr-4">Estado</th>
                 <th className="py-2 pr-4">Incidencias</th>
                 <th className="py-2 pr-4">Puntaje</th>
+                <th className="py-2 pr-4">Calificación</th>
                 <th className="py-2 pr-4"></th>
               </tr>
             </thead>
@@ -51,13 +52,11 @@ export function FinishedAttemptsTable({ examId, attempts }: { examId: string; at
                     </Badge>
                   </td>
                   <td className="py-2 pr-4">{a.penaltyCount}</td>
+                  <td className="py-2 pr-4">{a.totalScore ?? 0}</td>
                   <td className="py-2 pr-4">
-                    {a.totalScore ?? 0}
-                    {a.pendingReview && (
-                      <Badge tone="yellow" className="ml-2">
-                        Pendiente revisión
-                      </Badge>
-                    )}
+                    <Badge tone={a.pendingReview ? "yellow" : "green"}>
+                      {a.pendingReview ? "Pendiente de calificación" : "Calificado"}
+                    </Badge>
                   </td>
                   <td className="py-2 pr-4">
                     <Link href={`/admin/exams/${examId}/attempts/${a.id}`} className="text-brand-600 hover:underline">
