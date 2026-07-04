@@ -1,0 +1,58 @@
+{
+  "metadata": {
+    "title": "Primer Parcial de Programación II",
+    "career": "Ingeniería de Sistemas",
+    "academicTerm": "Gestión 2026",
+    "subject": "Programación II",
+    "examDate": "2026-07-10",
+    "durationMinutes": 90,
+    "instructions": "Lea cuidadosamente cada pregunta antes de responder.",
+    "evaluationType": "Examen parcial"
+  },
+  "settings": {
+    "maxPenalties": 3,
+    "onMaxPenalties": "auto_submit",
+    "trackFocusEvents": true,
+    "monitorExternalIps": true,
+    "differentIpPolicy": "warn_only",
+    "allowAiCodeEvaluation": true
+  },
+  "questions": [
+    {
+      "id": "q1",
+      "type": "single_choice",
+      "statement": "¿Cuál es la complejidad temporal de una búsqueda binaria?",
+      "points": 10,
+      "options": [
+        { "id": "a", "text": "O(n)" },
+        { "id": "b", "text": "O(log n)" },
+        { "id": "c", "text": "O(n²)" },
+        { "id": "d", "text": "O(1)" }
+      ],
+      "correctAnswer": "b"
+    },
+    {
+      "id": "q2",
+      "type": "multiple_choice",
+      "statement": "Seleccione las estructuras de datos lineales.",
+      "points": 15,
+      "options": [
+        { "id": "a", "text": "Pila" },
+        { "id": "b", "text": "Cola" },
+        { "id": "c", "text": "Árbol binario" },
+        { "id": "d", "text": "Lista enlazada" }
+      ],
+      "correctAnswers": ["a", "b", "d"]
+    },
+    {
+      "id": "q3",
+      "type": "code",
+      "statement": "Implemente una función recursiva para calcular el factorial de un número.",
+      "points": 25,
+      "language": "javascript",
+      "expectedSolution": "function factorial(n) { ... }",
+      "rubric": "Debe usar recursividad, manejar el caso base y devolver el valor correcto.",
+      "enableAiEvaluation": true
+    }
+  ]
+}

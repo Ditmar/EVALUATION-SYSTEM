@@ -1,0 +1,218 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  TEACHER
+}
+
+enum QuestionType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  CODE
+}
+
+enum OnMaxPenalties {
+  AUTO_SUBMIT
+  WARN_ONLY
+  LOCK_EXAM
+}
+
+enum DifferentIpPolicy {
+  OFF
+  WARN_ONLY
+  BLOCK
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  EXPIRED
+  LOCKED
+}
+
+enum ActivityEventType {
+  TAB_HIDDEN
+  WINDOW_BLUR
+  FULLSCREEN_EXIT
+  HEARTBEAT
+  RECONNECT
+  OTHER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  role         Role     @default(TEACHER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  exams         Exam[]
+  gradedAnswers Answer[] @relation("GradedBy")
+
+  @@map("users")
+}
+
+model Exam {
+  id String @id @default(cuid())
+
+  title           String
+  career          String
+  academicTerm    String
+  subject         String
+  examDate        DateTime
+  durationMinutes Int
+  instructions    String   @db.Text
+  evaluationType  String
+
+  maxPenalties          Int               @default(3)
+  onMaxPenalties        OnMaxPenalties    @default(AUTO_SUBMIT)
+  trackFocusEvents      Boolean           @default(true)
+  monitorExternalIps    Boolean           @default(true)
+  differentIpPolicy     DifferentIpPolicy @default(OFF)
+  allowAiCodeEvaluation Boolean           @default(true)
+
+  publicToken String    @unique
+  isPublished Boolean   @default(false)
+  publishedAt DateTime?
+  closedAt    DateTime?
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  questions Question[]
+  attempts  ExamAttempt[]
+
+  @@index([createdById])
+  @@map("exams")
+}
+
+model Question {
+  id         String       @id @default(cuid())
+  examId     String
+  exam       Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+  externalId String
+  type       QuestionType
+  statement  String       @db.Text
+  points     Float
+  order      Int
+
+  options        Json?
+  correctAnswer  String?
+  correctAnswers Json?
+
+  language           String?
+  expectedSolution   String? @db.Text
+  rubric             String? @db.Text
+  enableAiEvaluation Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  answers Answer[]
+
+  @@unique([examId, externalId])
+  @@index([examId])
+  @@map("questions")
+}
+
+model ExamAttempt {
+  id     String @id @default(cuid())
+  examId String
+  exam   Exam   @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  nombres       String
+  apellidos     String
+  ci            String
+  correo        String
+  acceptedTerms Boolean @default(true)
+
+  status      AttemptStatus @default(IN_PROGRESS)
+  startedAt   DateTime      @default(now())
+  expiresAt   DateTime
+  submittedAt DateTime?
+
+  observedIp   String?
+  penaltyCount Int     @default(0)
+
+  totalAutoScore   Float?
+  totalManualScore Float?
+  totalScore       Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  answers        Answer[]
+  activityEvents ActivityEvent[]
+
+  @@unique([examId, ci])
+  @@index([examId, status])
+  @@map("exam_attempts")
+}
+
+model Answer {
+  id         String      @id @default(cuid())
+  attemptId  String
+  attempt    ExamAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId String
+  question   Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  selectedOption  String?
+  selectedOptions Json?
+  codeAnswer      String? @db.Text
+
+  isCorrect   Boolean?
+  autoScore   Float?
+  manualScore Float?
+  finalScore  Float?
+
+  gradedAt   DateTime?
+  gradedById String?
+  gradedBy   User?     @relation("GradedBy", fields: [gradedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  aiEvaluations AiEvaluation[]
+
+  @@unique([attemptId, questionId])
+  @@index([attemptId])
+  @@map("answers")
+}
+
+model ActivityEvent {
+  id        String            @id @default(cuid())
+  attemptId String
+  attempt   ExamAttempt       @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  type      ActivityEventType
+  detail    String?           @db.Text
+  isPenalty Boolean           @default(false)
+  createdAt DateTime          @default(now())
+
+  @@index([attemptId, createdAt])
+  @@map("activity_events")
+}
+
+model AiEvaluation {
+  id             String   @id @default(cuid())
+  answerId       String
+  answer         Answer   @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  suggestedScore Float
+  feedback       String   @db.Text
+  rawResponse    Json
+  model          String
+  createdAt      DateTime @default(now())
+
+  @@index([answerId])
+  @@map("ai_evaluations")
+}
