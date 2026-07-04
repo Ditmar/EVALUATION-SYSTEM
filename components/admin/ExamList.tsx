@@ -15,6 +15,8 @@ interface ExamSummary {
   isPublished: boolean;
   questionCount: number;
   attemptCount: number;
+  finishedAttemptCount: number;
+  pendingReview: boolean;
 }
 
 export function ExamList() {
@@ -57,9 +59,16 @@ export function ExamList() {
                 {exam.questionCount} preguntas · {exam.attemptCount} intentos
               </p>
             </div>
-            <Badge tone={exam.isPublished ? "green" : "gray"}>
-              {exam.isPublished ? "Publicado" : "Borrador"}
-            </Badge>
+            <div className="flex items-center gap-2">
+              {exam.finishedAttemptCount > 0 && (
+                <Badge tone={exam.pendingReview ? "yellow" : "green"}>
+                  {exam.pendingReview ? "Pendiente de calificación" : "Calificado"}
+                </Badge>
+              )}
+              <Badge tone={exam.isPublished ? "green" : "gray"}>
+                {exam.isPublished ? "Publicado" : "Borrador"}
+              </Badge>
+            </div>
           </Card>
         </Link>
       ))}

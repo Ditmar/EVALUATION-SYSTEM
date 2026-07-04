@@ -13,6 +13,10 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: "desc" },
     include: {
       _count: { select: { questions: true, attempts: true } },
+      attempts: {
+        where: { status: { not: "IN_PROGRESS" } },
+        select: { answers: { select: { autoScore: true, manualScore: true } } },
+      },
     },
   });
 
@@ -28,6 +32,10 @@ export async function GET(request: NextRequest) {
       questionCount: exam._count.questions,
       attemptCount: exam._count.attempts,
       createdAt: exam.createdAt,
+      finishedAttemptCount: exam.attempts.length,
+      pendingReview: exam.attempts.some((a) =>
+        a.answers.some((ans) => ans.autoScore === null && ans.manualScore === null)
+      ),
     })),
   });
 }
