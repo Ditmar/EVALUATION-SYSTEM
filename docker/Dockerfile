@@ -8,6 +8,7 @@ RUN apk add --no-cache openssl
 RUN npm install -g npm@11
 
 COPY package.json package-lock.json ./
+COPY prisma ./prisma
 RUN npm ci --no-audit --no-fund --loglevel=error
 
 COPY . .
