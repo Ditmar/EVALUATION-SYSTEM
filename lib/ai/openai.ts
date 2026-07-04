@@ -1,34 +1,32 @@
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import type { AiProvider, CodeEvaluationInput, CodeEvaluationResult } from "./provider";
 import { buildEvaluationPrompt, clampScore, extractJsonPayload } from "./prompt";
 
-const MODEL = process.env.AI_MODEL || "claude-sonnet-5";
+const MODEL = process.env.AI_MODEL || "gpt-4o-mini";
 
-export class AnthropicProvider implements AiProvider {
+export class OpenAiProvider implements AiProvider {
   async evaluateCodeAnswer(input: CodeEvaluationInput): Promise<CodeEvaluationResult> {
     const apiKey = process.env.AI_API_KEY;
     if (!apiKey) {
       throw new Error("AI_API_KEY no está configurado en el entorno.");
     }
-    const client = new Anthropic({ apiKey });
+    const client = new OpenAI({ apiKey });
 
-    const response = await client.messages.create({
+    const response = await client.chat.completions.create({
       model: MODEL,
-      max_tokens: 1024,
-      messages: [{ role: "user", content: buildEvaluationPrompt(input) }],
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: "Responde únicamente con un objeto JSON válido, sin texto adicional." },
+        { role: "user", content: buildEvaluationPrompt(input) },
+      ],
     });
 
-    const textBlock = response.content.find(
-      (block): block is Anthropic.TextBlock => block.type === "text"
-    );
-    if (!textBlock) {
+    const text = response.choices[0]?.message?.content;
+    if (!text) {
       throw new Error("La evaluación con IA no devolvió contenido de texto.");
     }
 
-    const parsed = JSON.parse(extractJsonPayload(textBlock.text)) as {
-      score: number;
-      feedback: string;
-    };
+    const parsed = JSON.parse(extractJsonPayload(text)) as { score: number; feedback: string };
 
     return {
       suggestedScore: clampScore(parsed.score, input.maxPoints),

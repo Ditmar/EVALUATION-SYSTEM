@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdminSession } from "@/lib/auth/require-admin";
-import { getAiProvider } from "@/lib/ai/anthropic";
+import { getAiProvider } from "@/lib/ai/factory";
 
 export async function POST(
   request: NextRequest,

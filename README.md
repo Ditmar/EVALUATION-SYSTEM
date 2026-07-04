@@ -9,7 +9,7 @@ MVP de una plataforma web de exámenes en línea: el docente importa un examen m
 - **Tailwind CSS** — estilos.
 - **CodeMirror 6** (`@uiw/react-codemirror`) — editor con resaltado de sintaxis para JavaScript, TypeScript y Java.
 - **jose + bcryptjs** — sesión docente por cookie httpOnly firmada + contraseñas hasheadas.
-- **Anthropic SDK** (opcional) — evaluación asistida por IA de preguntas de código.
+- **Adaptador de IA desacoplado** (opcional) — evaluación asistida de preguntas de código, con implementaciones para Anthropic y OpenAI intercambiables por variable de entorno.
 - **Docker Compose** — entorno de desarrollo local reproducible.
 - **Vitest** — pruebas unitarias de la lógica pura (validación, calificación, penalidades, IP predominante).
 
@@ -29,7 +29,7 @@ lib/
   validation/        esquemas Zod (contrato JSON del examen, registro, actividad)
   grading/           calificación automática y agregación de puntajes (funciones puras)
   auth/              sesión docente (JWT) y sesión de intento del estudiante (JWT por cookie)
-  ai/                proveedor de IA desacoplado (interfaz + implementación Anthropic)
+  ai/                proveedor de IA desacoplado (interfaz + adaptadores Anthropic/OpenAI + fábrica)
   penalties.ts       lógica de penalidades (función pura)
   ip-utils.ts         extracción de IP + cálculo de IP predominante (funciones puras)
 prisma/
@@ -187,6 +187,21 @@ Este mismo JSON está disponible en [`examples/exam-sample.json`](examples/exam-
 - `code` queda "pendiente de revisión" hasta que el docente asigna un puntaje manual. Si el examen y la pregunta tienen la evaluación con IA habilitada, el docente puede pedir una sugerencia (puntaje + justificación breve) desde el panel de calificación; la sugerencia se guarda como un registro aparte (`AiEvaluation`) y **nunca se aplica sola** como nota final — el docente debe aceptarla, editarla o ignorarla.
 - El puntaje total de un intento es la suma de: nota manual si existe, si no la nota automática, si no 0 (pendiente).
 
+### Proveedor de IA (inversión de dependencias)
+
+Nada en el resto de la aplicación conoce a Anthropic ni a OpenAI: la ruta `POST /api/admin/exams/:examId/answers/:answerId/ai-evaluate` sólo depende de la interfaz `AiProvider` (`lib/ai/provider.ts`) y de una fábrica (`lib/ai/factory.ts`) que decide, en tiempo de ejecución, qué implementación concreta construir:
+
+```
+lib/ai/
+  provider.ts     interfaz AiProvider (evaluateCodeAnswer) — lo único de lo que depende el resto del sistema
+  prompt.ts        construcción del prompt y parseo de la respuesta, compartido entre adaptadores
+  anthropic.ts     AnthropicProvider (usa @anthropic-ai/sdk)
+  openai.ts        OpenAiProvider (usa openai)
+  factory.ts       getAiProvider() — elige el adaptador según AI_PROVIDER
+```
+
+La variable de entorno `AI_PROVIDER` (`anthropic` | `openai`, por defecto `anthropic`) decide el adaptador; `AI_API_KEY` y `AI_MODEL` aplican al que esté activo en ese momento (por ejemplo `AI_MODEL=claude-sonnet-5` para Anthropic o `AI_MODEL=gpt-4o-mini` para OpenAI). Para agregar un nuevo proveedor en el futuro, basta con crear un archivo que implemente `AiProvider` y sumar un `case` en `factory.ts` — no hay que tocar la ruta ni la interfaz.
+
 ## Control de actividad (idle / posible fraude)
 
 Mientras el estudiante rinde el examen, el navegador reporta al servidor:
@@ -251,3 +266,4 @@ Cubre, sobre funciones puras en `lib/` (sin necesidad de base de datos):
 - **Lógica de penalidades** (`tests/penalties.test.ts`): qué cuenta como penalidad, comportamiento en `warn_only`/`lock_exam`/`auto_submit` al llegar al umbral.
 - **IP predominante** (`tests/ip-utils.test.ts`): extracción de IP según `trustProxy`, cálculo de moda con empates, conjunto vacío/único.
 - **Tokens, CSV y rate limiting** (`tests/tokens.test.ts`, `tests/csv.test.ts`, `tests/rate-limit.test.ts`).
+- **Fábrica de proveedor de IA** (`tests/ai-factory.test.ts`): `AI_PROVIDER` selecciona el adaptador correcto (por defecto Anthropic), es insensible a mayúsculas/espacios, y rechaza valores desconocidos — sin hacer llamadas de red reales.
