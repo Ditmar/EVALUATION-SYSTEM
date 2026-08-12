@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
 import { StudentLoginForm } from "@/components/student/StudentLoginForm";
@@ -18,13 +19,18 @@ interface Metadata {
   evaluationType: string;
 }
 
-type Mode = "checking" | "starting" | "login" | "activate" | "error";
+type Mode = "checking" | "confirm" | "starting" | "login" | "activate" | "error";
 
 export function RegisteredExamStart({ token, metadata }: { token: string; metadata: Metadata }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("checking");
   const [error, setError] = useState<string | null>(null);
+  const [acceptTerms, setAcceptTerms] = useState(false);
 
+  // The tab/window monitoring (ActivityMonitor) only mounts on the attempt
+  // page, so it only starts once this POST succeeds — everything before it
+  // (login, activation, reading the warning below) happens with no
+  // monitoring active yet.
   async function tryStart() {
     setMode("starting");
     setError(null);
@@ -47,11 +53,7 @@ export function RegisteredExamStart({ token, metadata }: { token: string; metada
 
   async function checkSession() {
     const res = await fetch("/api/student/auth/me");
-    if (res.ok) {
-      await tryStart();
-    } else {
-      setMode("login");
-    }
+    setMode(res.ok ? "confirm" : "login");
   }
 
   useEffect(() => {
@@ -77,6 +79,11 @@ export function RegisteredExamStart({ token, metadata }: { token: string; metada
           <dt className="text-slate-500">Duración</dt>
           <dd>{metadata.durationMinutes} minutos</dd>
         </dl>
+
+        <div className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
+          <p className="mb-1 font-medium">Instrucciones</p>
+          <p className="whitespace-pre-wrap">{metadata.instructions}</p>
+        </div>
 
         <div className="mt-4 rounded-lg bg-brand-50 p-3 text-sm text-brand-800">
           Este examen es solo para estudiantes registrados y matriculados en la materia correspondiente.
@@ -121,10 +128,38 @@ export function RegisteredExamStart({ token, metadata }: { token: string; metada
           </div>
 
           {mode === "login" ? (
-            <StudentLoginForm onSuccess={tryStart} />
+            <StudentLoginForm onSuccess={() => setMode("confirm")} />
           ) : (
-            <StudentActivateForm onSuccess={tryStart} />
+            <StudentActivateForm onSuccess={() => setMode("confirm")} />
           )}
+        </Card>
+      )}
+
+      {mode === "confirm" && (
+        <Card>
+          <h2 className="mb-3 font-medium text-slate-900">Antes de comenzar</h2>
+          <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+            A partir de que hagas clic en &quot;Iniciar examen&quot;, este examen monitorea la
+            actividad de la pestaña/ventana y la dirección IP observada como medida de
+            supervisión. <strong>No minimices la ventana ni cambies de pestaña</strong> mientras
+            rindes: hacerlo se registra como una incidencia y, si se repite, el examen puede
+            bloquearse o enviarse automáticamente según la configuración del docente.
+          </div>
+
+          <label className="mb-4 flex items-start gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={acceptTerms}
+              onChange={(e) => setAcceptTerms(e.target.checked)}
+            />
+            Entiendo que este examen monitorea mi actividad de pestaña/ventana y mi dirección IP,
+            y que no debo minimizar ni cambiar de pestaña una vez iniciado.
+          </label>
+
+          <Button onClick={tryStart} disabled={!acceptTerms} className="w-full">
+            Iniciar examen
+          </Button>
         </Card>
       )}
     </div>
