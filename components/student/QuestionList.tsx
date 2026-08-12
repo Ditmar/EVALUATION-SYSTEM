@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
+import { QuestionStatement } from "@/components/QuestionStatement";
 import { SingleChoiceQuestion } from "@/components/student/SingleChoiceQuestion";
 import { MultipleChoiceQuestion } from "@/components/student/MultipleChoiceQuestion";
 import { CodeQuestion } from "@/components/student/CodeQuestion";
@@ -51,7 +52,7 @@ export function QuestionList({
                 {isAnswered(answer) ? "Respondida" : "Pendiente"}
               </Badge>
             </div>
-            <p className="mb-4 whitespace-pre-wrap text-slate-700">{q.statement}</p>
+            <QuestionStatement statement={q.statement} className="mb-4 space-y-2" />
 
             {q.type === "SINGLE_CHOICE" && q.options && (
               <SingleChoiceQuestion

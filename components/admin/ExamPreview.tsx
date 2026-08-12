@@ -1,6 +1,7 @@
 import type { ExamImportInput } from "@/lib/validation/exam-schema";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
+import { QuestionStatement } from "@/components/QuestionStatement";
 
 const TYPE_LABEL: Record<string, string> = {
   single_choice: "Opción única",
@@ -52,7 +53,7 @@ export function ExamPreview({ exam }: { exam: ExamImportInput }) {
               <Badge tone="gray">{TYPE_LABEL[q.type]}</Badge>
               <span className="text-slate-500">{q.points} pts</span>
             </div>
-            <p className="text-slate-800">{q.statement}</p>
+            <QuestionStatement statement={q.statement} className="space-y-2" />
           </li>
         ))}
       </ul>

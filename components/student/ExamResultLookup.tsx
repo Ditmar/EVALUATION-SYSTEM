@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { QuestionStatement } from "@/components/QuestionStatement";
 
 interface Option {
   id: string;
@@ -152,7 +153,7 @@ function GradedResultView({ result, onBack }: { result: GradedResult; onBack: ()
               {q.earnedScore} / {q.points} pts
             </Badge>
           </div>
-          <p className="mb-3 whitespace-pre-wrap text-slate-700">{q.statement}</p>
+          <QuestionStatement statement={q.statement} className="mb-3 space-y-2" />
 
           {q.type === "SINGLE_CHOICE" && q.options && (
             <ul className="space-y-1 text-sm">
