@@ -5,6 +5,7 @@ import { javascript } from "@codemirror/lang-javascript";
 import { StreamLanguage } from "@codemirror/language";
 import { c, clike, cpp, csharp } from "@codemirror/legacy-modes/mode/clike";
 import { python } from "@codemirror/legacy-modes/mode/python";
+import { shell } from "@codemirror/legacy-modes/mode/shell";
 import { EditorView } from "@codemirror/view";
 
 // Minimal keyword set sufficient for readable Java syntax highlighting via the
@@ -35,6 +36,18 @@ export function extensionsFor(language: string) {
     case "csharp":
     case "c#":
       return [StreamLanguage.define(csharp)];
+    case "bash":
+    case "sh":
+    case "shell":
+      return [StreamLanguage.define(shell)];
+    case "markdown":
+    case "md":
+    case "text":
+    case "txt":
+    case "plain":
+      // No dedicated markdown mode installed; better to show plain,
+      // unstyled text than to miscolor prose using JS syntax rules.
+      return [];
     case "javascript":
     case "js":
     default:

@@ -110,9 +110,20 @@ describe("ExamImportSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("requires a valid language enum for code questions", () => {
+  it("accepts any non-empty language label for code questions, normalized to lowercase", () => {
+    const withPython = structuredClone(validExam);
+    (withPython.questions[2] as any).language = "Python";
+    const result = ExamImportSchema.safeParse(withPython);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      const codeQuestion = result.data.questions[2] as { language: string };
+      expect(codeQuestion.language).toBe("python");
+    }
+  });
+
+  it("rejects an empty language for code questions", () => {
     const bad = structuredClone(validExam);
-    (bad.questions[2] as any).language = "python";
+    (bad.questions[2] as any).language = "";
     const result = ExamImportSchema.safeParse(bad);
     expect(result.success).toBe(false);
   });

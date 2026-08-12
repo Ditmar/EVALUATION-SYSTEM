@@ -23,11 +23,21 @@ export const MultipleChoiceQuestionSchema = BaseQuestionSchema.extend({
   correctAnswers: z.array(z.string().min(1)).min(1),
 });
 
-export const CODE_LANGUAGES = ["javascript", "typescript", "java"] as const;
+// Languages with dedicated CodeMirror syntax highlighting in the answer
+// editor (see components/CodeEditor.tsx); anything else still works, it just
+// falls back to generic/no highlighting. Not used for validation — `code`
+// questions aren't limited to programming languages (a "language" of e.g.
+// "bash" or "markdown" is valid for command-sequence or written-response
+// answers), so `language` below only requires a non-empty label.
+export const CODE_LANGUAGES = ["javascript", "typescript", "java", "python", "c", "cpp", "csharp", "bash"] as const;
 
 export const CodeQuestionSchema = BaseQuestionSchema.extend({
   type: z.literal("code"),
-  language: z.enum(CODE_LANGUAGES),
+  language: z
+    .string()
+    .trim()
+    .min(1, "El lenguaje es requerido")
+    .transform((v) => v.toLowerCase()),
   expectedSolution: z.string().optional(),
   rubric: z.string().optional(),
   enableAiEvaluation: z.boolean().default(false),

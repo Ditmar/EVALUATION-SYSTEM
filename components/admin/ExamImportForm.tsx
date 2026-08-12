@@ -70,6 +70,16 @@ const EXAMPLE_JSON = `{
       "expectedSolution": "function factorial(n) { ... }",
       "rubric": "Debe usar recursividad, manejar el caso base y devolver el valor correcto.",
       "enableAiEvaluation": true
+    },
+    {
+      "id": "q4",
+      "type": "code",
+      "statement": "Explique con sus palabras la diferencia entre una pila (stack) y una cola (queue), dando un ejemplo de uso de cada una.",
+      "points": 10,
+      "language": "markdown",
+      "expectedSolution": "Una pila es LIFO (último en entrar, primero en salir)... Una cola es FIFO (primero en entrar, primero en salir)...",
+      "rubric": "El campo \\"language\\" de una pregunta de tipo \\"code\\" no está limitado a lenguajes de programación (acepta cualquier texto, ej. \\"javascript\\", \\"python\\", \\"bash\\", \\"markdown\\") — úsalo para respuestas escritas/teóricas largas cuando una opción múltiple no alcance.",
+      "enableAiEvaluation": true
     }
   ]
 }`;
