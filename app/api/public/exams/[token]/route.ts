@@ -18,6 +18,7 @@ export async function GET(request: NextRequest, { params }: { params: { token: s
       durationMinutes: exam.durationMinutes,
       instructions: exam.instructions,
       evaluationType: exam.evaluationType,
+      accessMode: exam.accessMode,
     },
     settings: {
       trackFocusEvents: exam.trackFocusEvents,

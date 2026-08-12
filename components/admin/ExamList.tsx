@@ -17,6 +17,8 @@ interface ExamSummary {
   attemptCount: number;
   finishedAttemptCount: number;
   pendingReview: boolean;
+  accessMode: "OPEN" | "REGISTERED";
+  materia: { id: string; name: string } | null;
 }
 
 export function ExamList() {
@@ -60,6 +62,8 @@ export function ExamList() {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              {exam.materia && <Badge tone="blue">{exam.materia.name}</Badge>}
+              {exam.accessMode === "REGISTERED" && <Badge tone="gray">Registrado</Badge>}
               {exam.finishedAttemptCount > 0 && (
                 <Badge tone={exam.pendingReview ? "yellow" : "green"}>
                   {exam.pendingReview ? "Pendiente de calificación" : "Calificado"}

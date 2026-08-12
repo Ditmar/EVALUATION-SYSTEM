@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireAdminSession } from "@/lib/auth/require-admin";
 import { ExamImportSchema } from "@/lib/validation/exam-schema";
@@ -17,6 +18,7 @@ export async function GET(request: NextRequest) {
         where: { status: { not: "IN_PROGRESS" } },
         select: { answers: { select: { autoScore: true, manualScore: true } } },
       },
+      subjectRef: { select: { id: true, name: true } },
     },
   });
 
@@ -36,9 +38,16 @@ export async function GET(request: NextRequest) {
       pendingReview: exam.attempts.some((a) =>
         a.answers.some((ans) => ans.autoScore === null && ans.manualScore === null)
       ),
+      accessMode: exam.accessMode,
+      materia: exam.subjectRef ? { id: exam.subjectRef.id, name: exam.subjectRef.name } : null,
     })),
   });
 }
+
+const ExamAccessSchema = z.object({
+  subjectId: z.string().min(1, "Selecciona una materia"),
+  accessMode: z.enum(["OPEN", "REGISTERED"]).default("OPEN"),
+});
 
 export async function POST(request: NextRequest) {
   const auth = await requireAdminSession(request);
@@ -54,6 +63,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "El JSON del examen no es válido.", issues: parsed.error.issues }, { status: 400 });
   }
 
+  const access = ExamAccessSchema.safeParse(body);
+  if (!access.success) {
+    return NextResponse.json(
+      { error: "Selecciona una materia y un modo de acceso válidos.", issues: access.error.issues },
+      { status: 400 }
+    );
+  }
+
+  const subject = await prisma.subject.findFirst({
+    where: { id: access.data.subjectId, createdById: auth.session.userId },
+  });
+  if (!subject) {
+    return NextResponse.json({ error: "Materia no encontrada." }, { status: 404 });
+  }
+
   const { metadata, settings, questions } = parsed.data;
 
   const exam = await prisma.exam.create({
@@ -62,6 +86,8 @@ export async function POST(request: NextRequest) {
       career: metadata.career,
       academicTerm: metadata.academicTerm,
       subject: metadata.subject,
+      subjectId: subject.id,
+      accessMode: access.data.accessMode,
       examDate: new Date(`${metadata.examDate}T00:00:00.000Z`),
       durationMinutes: metadata.durationMinutes,
       instructions: metadata.instructions,

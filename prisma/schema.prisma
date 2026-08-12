@@ -45,6 +45,11 @@ enum ActivityEventType {
   OTHER
 }
 
+enum ExamAccessMode {
+  OPEN
+  REGISTERED
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -56,8 +61,75 @@ model User {
 
   exams         Exam[]
   gradedAnswers Answer[] @relation("GradedBy")
+  subjects      Subject[]
 
   @@map("users")
+}
+
+model Subject {
+  id          String   @id @default(cuid())
+  name        String
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  exams       Exam[]
+  enrollments Enrollment[]
+
+  @@unique([createdById, name])
+  @@index([createdById])
+  @@map("subjects")
+}
+
+model Student {
+  id           String   @id @default(cuid())
+  ci           String   @unique
+  nombres      String
+  apellidos    String
+  correo       String?
+  passwordHash String? // null hasta que el estudiante activa su cuenta
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  enrollments   Enrollment[]
+  refreshTokens StudentRefreshToken[]
+  examAttempts  ExamAttempt[]
+
+  @@map("students")
+}
+
+model Enrollment {
+  id        String  @id @default(cuid())
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([studentId, subjectId])
+  @@index([subjectId])
+  @@map("enrollments")
+}
+
+model StudentRefreshToken {
+  id        String  @id @default(cuid())
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  // Constant across an entire rotation chain from one login; reuse of any
+  // already-revoked token in the chain revokes the whole familyId at once.
+  familyId          String
+  revokedAt         DateTime?
+  replacedByTokenId String?
+  expiresAt         DateTime
+
+  createdAt DateTime @default(now())
+
+  @@index([studentId])
+  @@index([familyId])
+  @@map("student_refresh_tokens")
 }
 
 model Exam {
@@ -84,6 +156,15 @@ model Exam {
   publishedAt DateTime?
   closedAt    DateTime?
 
+  // `subject` (above) is legacy free text from the pasted exam JSON and is
+  // kept as-is for backward compatibility. `subjectRef` is the first-class
+  // materia used for categorization and REGISTERED-mode enrollment gating;
+  // named "subjectRef" (not "subject") to avoid colliding with that legacy
+  // scalar field.
+  subjectId  String?
+  subjectRef Subject?       @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  accessMode ExamAccessMode @default(OPEN)
+
   createdById String
   createdBy   User   @relation(fields: [createdById], references: [id])
 
@@ -94,6 +175,7 @@ model Exam {
   attempts  ExamAttempt[]
 
   @@index([createdById])
+  @@index([subjectId])
   @@map("exams")
 }
 
@@ -137,6 +219,11 @@ model ExamAttempt {
   correo        String
   acceptedTerms Boolean @default(true)
 
+  // Set only for attempts created via the REGISTERED-mode /start endpoint;
+  // null for anonymous OPEN-mode attempts (the default, unchanged flow).
+  studentId String?
+  student   Student? @relation(fields: [studentId], references: [id], onDelete: SetNull)
+
   status      AttemptStatus @default(IN_PROGRESS)
   startedAt   DateTime      @default(now())
   expiresAt   DateTime
@@ -157,6 +244,7 @@ model ExamAttempt {
 
   @@unique([examId, ci])
   @@index([examId, status])
+  @@index([studentId])
   @@map("exam_attempts")
 }
 

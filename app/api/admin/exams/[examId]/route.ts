@@ -19,9 +19,14 @@ export async function GET(request: NextRequest, { params }: { params: { examId: 
   return NextResponse.json({ exam });
 }
 
-const PatchSchema = z.object({
-  isPublished: z.boolean(),
-});
+const PatchSchema = z
+  .object({
+    isPublished: z.boolean().optional(),
+    accessMode: z.enum(["OPEN", "REGISTERED"]).optional(),
+  })
+  .refine((d) => d.isPublished !== undefined || d.accessMode !== undefined, {
+    message: "Debe incluir isPublished o accessMode.",
+  });
 
 export async function PATCH(request: NextRequest, { params }: { params: { examId: string } }) {
   const auth = await requireAdminSession(request);
@@ -40,12 +45,17 @@ export async function PATCH(request: NextRequest, { params }: { params: { examId
     return NextResponse.json({ error: "Examen no encontrado." }, { status: 404 });
   }
 
+  const { isPublished, accessMode } = parsed.data;
+
   const exam = await prisma.exam.update({
     where: { id: params.examId },
     data: {
-      isPublished: parsed.data.isPublished,
-      publishedAt: parsed.data.isPublished ? existing.publishedAt ?? new Date() : existing.publishedAt,
-      closedAt: !parsed.data.isPublished ? new Date() : null,
+      ...(isPublished !== undefined && {
+        isPublished,
+        publishedAt: isPublished ? existing.publishedAt ?? new Date() : existing.publishedAt,
+        closedAt: !isPublished ? new Date() : null,
+      }),
+      ...(accessMode !== undefined && { accessMode }),
     },
   });
 

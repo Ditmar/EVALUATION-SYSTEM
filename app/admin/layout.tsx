@@ -13,14 +13,37 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return <ToastProvider>{children}</ToastProvider>;
   }
 
+  const navLinks = [
+    { href: "/admin", label: "Exámenes" },
+    { href: "/admin/subjects", label: "Materias" },
+    { href: "/admin/students", label: "Estudiantes" },
+  ];
+
   return (
     <ToastProvider>
       <div className="min-h-screen">
         <header className="border-b border-slate-200 bg-white">
           <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-            <Link href="/admin" className="text-lg font-semibold text-slate-900">
-              Sistema de Evaluación
-            </Link>
+            <div className="flex items-center gap-8">
+              <Link href="/admin" className="text-lg font-semibold text-slate-900">
+                Sistema de Evaluación
+              </Link>
+              <nav className="flex items-center gap-5 text-sm">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={
+                      pathname === link.href
+                        ? "font-medium text-brand-600"
+                        : "text-slate-500 hover:text-slate-900"
+                    }
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </nav>
+            </div>
             <LogoutButton />
           </div>
         </header>

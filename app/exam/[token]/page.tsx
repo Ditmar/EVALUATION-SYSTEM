@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ExamRegistrationForm } from "@/components/student/ExamRegistrationForm";
+import { RegisteredExamStart } from "@/components/student/RegisteredExamStart";
 import { Spinner } from "@/components/ui/Spinner";
 
 export default function ExamLandingPage({ params }: { params: { token: string } }) {
@@ -59,6 +60,10 @@ export default function ExamLandingPage({ params }: { params: { token: string } 
         </div>
       </div>
     );
+  }
+
+  if (metadata.accessMode === "REGISTERED") {
+    return <RegisteredExamStart token={params.token} metadata={metadata} />;
   }
 
   return <ExamRegistrationForm token={params.token} metadata={metadata} />;

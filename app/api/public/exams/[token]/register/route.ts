@@ -16,6 +16,12 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
   if (!exam || !exam.isPublished) {
     return NextResponse.json({ error: "Examen no encontrado o no disponible." }, { status: 404 });
   }
+  if (exam.accessMode === "REGISTERED") {
+    return NextResponse.json(
+      { error: "Este examen requiere iniciar sesión como estudiante registrado." },
+      { status: 403 }
+    );
+  }
 
   const body = await request.json().catch(() => null);
   const parsed = StudentRegistrationSchema.safeParse(body);
