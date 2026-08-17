@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
       ...(subjectId ? { subjectId } : {}),
     },
     include: {
-      student: { select: { id: true, ci: true, nombres: true, apellidos: true, passwordHash: true } },
+      student: { select: { id: true, ci: true, nombres: true, apellidos: true, correo: true, passwordHash: true } },
       subject: { select: { id: true, name: true } },
     },
     orderBy: [{ student: { apellidos: "asc" } }, { student: { nombres: "asc" } }],
@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
       ci: e.student.ci,
       nombres: e.student.nombres,
       apellidos: e.student.apellidos,
+      correo: e.student.correo,
       activated: e.student.passwordHash !== null,
       subjectId: e.subject.id,
       subjectName: e.subject.name,

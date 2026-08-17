@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 
 const EXAMPLE_JSON = `[
-  { "ci": "1234566", "nombres": "Davinia Irlanda", "apellidos": "Castro Loredo", "materia": "Programación II" },
+  { "ci": "1234566", "nombres": "Davinia Irlanda", "apellidos": "Castro Loredo", "correo": "davinia.castro@example.com", "materia": "Programación II" },
   { "ci": "7654321", "nombres": "Juan", "apellidos": "Pérez Gómez", "materia": "Programación II" }
 ]`;
 
@@ -103,7 +103,7 @@ export function StudentImportForm() {
           onChange={(e) => setRaw(e.target.value)}
           rows={16}
           className="font-mono text-xs"
-          placeholder='[{"ci": "...", "nombres": "...", "apellidos": "...", "materia": "..."}]'
+          placeholder='[{"ci": "...", "nombres": "...", "apellidos": "...", "correo": "... (opcional)", "materia": "..."}]'
         />
         {errors.length > 0 && (
           <div className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
@@ -136,6 +136,7 @@ export function StudentImportForm() {
                     <th className="py-1 pr-3">CI</th>
                     <th className="py-1 pr-3">Nombres</th>
                     <th className="py-1 pr-3">Apellidos</th>
+                    <th className="py-1 pr-3">Correo</th>
                     <th className="py-1 pr-3">Materia</th>
                   </tr>
                 </thead>
@@ -145,6 +146,7 @@ export function StudentImportForm() {
                       <td className="py-1 pr-3">{r.ci}</td>
                       <td className="py-1 pr-3">{r.nombres}</td>
                       <td className="py-1 pr-3">{r.apellidos}</td>
+                      <td className="py-1 pr-3 text-slate-500">{r.correo ?? "—"}</td>
                       <td className="py-1 pr-3">{r.materia}</td>
                     </tr>
                   ))}
