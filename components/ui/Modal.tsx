@@ -14,9 +14,9 @@ export function Modal({ open, title, children, onClose, footer }: ModalProps) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
       <div
-        className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+        className="w-full max-w-md rounded-2xl border border-slate-200/80 bg-white p-6 shadow-popover"
         role="dialog"
         aria-modal="true"
         aria-label={title}
@@ -26,7 +26,7 @@ export function Modal({ open, title, children, onClose, footer }: ModalProps) {
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600"
+            className="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
             aria-label="Cerrar"
           >
             ✕

@@ -39,8 +39,14 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <Card className="w-full max-w-sm">
+    <div className="flex min-h-screen items-center justify-center bg-ink-900 px-4">
+      <div className="w-full max-w-sm">
+        <div className="mb-6 flex justify-center">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-600 text-base font-bold text-white shadow-popover">
+            SE
+          </div>
+        </div>
+        <Card>
         <h1 className="mb-1 text-xl font-semibold text-slate-900">Sistema de Evaluación</h1>
         <p className="mb-6 text-sm text-slate-500">Inicia sesión como docente para administrar exámenes.</p>
 
@@ -79,7 +85,8 @@ export default function AdminLoginPage() {
             {loading ? "Ingresando..." : "Ingresar"}
           </Button>
         </form>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }

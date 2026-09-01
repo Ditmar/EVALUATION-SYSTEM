@@ -58,22 +58,26 @@ export function LaboratoryList() {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
       {laboratories.map((lab) => (
-        <Link key={lab.id} href={`/admin/laboratories/${lab.id}`} className="block">
-          <Card className="flex items-center justify-between transition hover:border-brand-300">
-            <div>
-              <h3 className="font-medium text-slate-900">{lab.title}</h3>
-              <p className="text-sm text-slate-500">
-                {lab.subject.name} · {lab.totalPoints} puntos
-                {lab.durationMinutes ? ` · ${lab.durationMinutes} minutos` : ""}
-              </p>
-              <p className="mt-1 text-xs text-slate-400">
-                {lab.questionCount} preguntas ({lab.automaticCount} automáticas · {lab.manualCount} manuales · {lab.aiCount} IA) ·{" "}
-                {lab.submissionCount} entregas
-              </p>
+        <Link key={lab.id} href={`/admin/laboratories/${lab.id}`} className="block h-full">
+          <Card className="card-interactive flex h-full flex-col">
+            <div className="mb-3 flex items-start justify-between gap-2">
+              <h3 className="font-medium leading-snug text-slate-900">{lab.title}</h3>
+              <Badge tone={STATUS_TONE[lab.status]} className="shrink-0">
+                {STATUS_LABEL[lab.status]}
+              </Badge>
             </div>
-            <Badge tone={STATUS_TONE[lab.status]}>{STATUS_LABEL[lab.status]}</Badge>
+            <p className="text-sm text-slate-500">
+              {lab.subject.name} · {lab.totalPoints} puntos
+              {lab.durationMinutes ? ` · ${lab.durationMinutes} minutos` : ""}
+            </p>
+            <p className="mt-2 text-xs text-slate-400">
+              {lab.questionCount} preguntas ({lab.automaticCount} automáticas · {lab.manualCount} manuales · {lab.aiCount} IA)
+            </p>
+            <div className="mt-4 flex flex-1 items-end">
+              <Badge tone="gray">{lab.submissionCount} entregas</Badge>
+            </div>
           </Card>
         </Link>
       ))}

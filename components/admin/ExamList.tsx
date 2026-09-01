@@ -47,21 +47,26 @@ export function ExamList() {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
       {exams.map((exam) => (
-        <Link key={exam.id} href={`/admin/exams/${exam.id}`} className="block">
-          <Card className="flex items-center justify-between transition hover:border-brand-300">
-            <div>
-              <h3 className="font-medium text-slate-900">{exam.title}</h3>
-              <p className="text-sm text-slate-500">
-                {exam.subject} · {exam.academicTerm} ·{" "}
-                {new Date(exam.examDate).toLocaleDateString("es-BO", { timeZone: "UTC" })}
-              </p>
-              <p className="mt-1 text-xs text-slate-400">
-                {exam.questionCount} preguntas · {exam.attemptCount} intentos
-              </p>
+        <Link key={exam.id} href={`/admin/exams/${exam.id}`} className="block h-full">
+          <Card className="card-interactive flex h-full flex-col">
+            <div className="mb-3 flex items-start justify-between gap-2">
+              <h3 className="font-medium leading-snug text-slate-900">{exam.title}</h3>
+              <Badge tone={exam.isPublished ? "green" : "gray"} className="shrink-0">
+                {exam.isPublished ? "Publicado" : "Borrador"}
+              </Badge>
             </div>
-            <div className="flex items-center gap-2">
+            <p className="text-sm text-slate-500">
+              {exam.subject} · {exam.academicTerm}
+            </p>
+            <p className="mt-1 text-sm text-slate-500">
+              {new Date(exam.examDate).toLocaleDateString("es-BO", { timeZone: "UTC" })}
+            </p>
+            <p className="mt-1 text-xs text-slate-400">
+              {exam.questionCount} preguntas · {exam.attemptCount} intentos
+            </p>
+            <div className="mt-4 flex flex-1 flex-wrap items-end gap-2">
               {exam.materia && <Badge tone="blue">{exam.materia.name}</Badge>}
               {exam.accessMode === "REGISTERED" && <Badge tone="gray">Registrado</Badge>}
               {exam.finishedAttemptCount > 0 && (
@@ -69,9 +74,6 @@ export function ExamList() {
                   {exam.pendingReview ? "Pendiente de calificación" : "Calificado"}
                 </Badge>
               )}
-              <Badge tone={exam.isPublished ? "green" : "gray"}>
-                {exam.isPublished ? "Publicado" : "Borrador"}
-              </Badge>
             </div>
           </Card>
         </Link>

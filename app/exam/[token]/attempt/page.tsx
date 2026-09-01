@@ -174,12 +174,12 @@ export default function ExamAttemptPage({ params }: { params: { token: string } 
       {deadline && <CountdownTimer deadline={deadline} onExpire={submitExam} />}
       <PenaltyWarningBanner penaltyCount={penaltyCount} maxPenalties={maxPenalties} lastMessage={lastPenaltyMessage} />
 
-      <div className="mx-auto max-w-3xl px-4 py-6">
+      <div className="mx-auto max-w-4xl px-4 py-6">
         <QuestionList questions={questions} answers={answers} onChange={handleAnswerChange} />
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white p-4">
-        <div className="mx-auto flex max-w-3xl items-center justify-between">
+        <div className="mx-auto flex max-w-4xl items-center justify-between">
           <p className="text-sm text-slate-500">
             {answeredCount} de {questions.length} preguntas respondidas
           </p>

@@ -57,7 +57,7 @@ export function ExamRegistrationForm({ token, metadata }: { token: string; metad
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 px-4 py-10">
+    <div className="mx-auto max-w-3xl space-y-6 px-4 py-10">
       <div className="card p-6">
         <h1 className="mb-1 text-2xl font-semibold text-slate-900">{metadata.title}</h1>
         <p className="mb-4 text-sm text-slate-500">{metadata.evaluationType}</p>

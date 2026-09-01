@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/Button";
+import { LogoutIcon } from "@/components/ui/icons";
 
-export function LogoutButton() {
+export function LogoutButton({ className = "btn-secondary" }: { className?: string }) {
   const router = useRouter();
 
   async function handleLogout() {
@@ -13,8 +13,9 @@ export function LogoutButton() {
   }
 
   return (
-    <Button variant="secondary" onClick={handleLogout}>
+    <button type="button" onClick={handleLogout} className={className}>
+      <LogoutIcon className="h-4 w-4" />
       Cerrar sesión
-    </Button>
+    </button>
   );
 }
