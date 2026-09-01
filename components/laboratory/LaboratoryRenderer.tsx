@@ -27,6 +27,8 @@ interface RenderContext {
   githubAttempts?: Record<string, GithubAttemptSummary>;
 }
 
+const BLOCK_LEVEL_ANSWER_TYPES = new Set<QuestionDefinition["type"]>(["github-pr", "textarea", "code"]);
+
 const HEADING_CLASSES: Record<number, string> = {
   1: "text-2xl font-semibold text-slate-900",
   2: "text-xl font-semibold text-slate-900",
@@ -236,10 +238,11 @@ function renderAnswer(questionId: string, ctx: RenderContext, key: number): Reac
     />
   );
 
-  // `github-pr` renders its own full-width block (repo link, URL input,
-  // checklist) — the narrow inline-flex span every other answer type uses
-  // would cramp it to shrink-to-fit sizing instead of the page's width.
-  if (question.type === "github-pr") {
+  // `github-pr` (repo link, URL input, checklist), `textarea` (edit/preview
+  // tabs over a full-size box) and `code` (an editor) all need real width —
+  // the narrow inline-flex span every other answer type uses would cramp
+  // them to shrink-to-fit sizing instead of the page's width.
+  if (BLOCK_LEVEL_ANSWER_TYPES.has(question.type)) {
     return (
       <div key={key} className="my-2 space-y-1">
         {answerElement}
@@ -254,4 +257,16 @@ function renderAnswer(questionId: string, ctx: RenderContext, key: number): Reac
       {caption}
     </span>
   );
+}
+
+/**
+ * Renders plain `LaboratoryNode[]` (e.g. from `renderMarkdownText` — a
+ * student's free-text Markdown answer, never a full laboratory document) as
+ * JSX, reusing the exact same whitelisted, safe node rendering as the full
+ * `LaboratoryRenderer`. There are never `labAnswer` nodes in this input, so
+ * the context's question/repository maps are always empty.
+ */
+export function MarkdownNodes({ nodes }: { nodes: LaboratoryNode[] }) {
+  const ctx: RenderContext = { questionsById: new Map(), repositoriesById: new Map(), answers: {} };
+  return <>{renderNodes(nodes, ctx)}</>;
 }
