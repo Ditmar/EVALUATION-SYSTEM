@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { LaboratoryStatusControl } from "@/components/admin/LaboratoryStatusControl";
 import { LaboratorySubmissionsTable } from "@/components/admin/LaboratorySubmissionsTable";
@@ -43,7 +45,12 @@ export default function LaboratoryDetailPage({ params }: { params: { labId: stri
             {laboratory.durationMinutes ? ` · ${laboratory.durationMinutes} minutos` : ""} · versión {laboratory.version}
           </p>
         </div>
-        <LaboratoryStatusControl laboratoryId={laboratory.id} initialStatus={laboratory.status} />
+        <div className="flex items-center gap-3">
+          <Link href={`/admin/laboratories/${laboratory.id}/edit`}>
+            <Button variant="secondary">Editar</Button>
+          </Link>
+          <LaboratoryStatusControl laboratoryId={laboratory.id} initialStatus={laboratory.status} />
+        </div>
       </div>
 
       {laboratory.status !== "PUBLISHED" && (
