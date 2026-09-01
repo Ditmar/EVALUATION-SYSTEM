@@ -7,6 +7,7 @@ import { c, clike, cpp, csharp } from "@codemirror/legacy-modes/mode/clike";
 import { python } from "@codemirror/legacy-modes/mode/python";
 import { shell } from "@codemirror/legacy-modes/mode/shell";
 import { EditorView } from "@codemirror/view";
+import type { Extension } from "@codemirror/state";
 
 // Minimal keyword set sufficient for readable Java syntax highlighting via the
 // generic C-like legacy mode (there is no first-class CM6 Java language package).
@@ -18,7 +19,7 @@ function wordsToObject(words: string): Record<string, boolean> {
   return Object.fromEntries(words.split(" ").map((w) => [w, true]));
 }
 
-export function extensionsFor(language: string) {
+function computeExtensionsFor(language: string): Extension[] {
   switch (language) {
     case "typescript":
     case "ts":
@@ -55,6 +56,27 @@ export function extensionsFor(language: string) {
   }
 }
 
+const extensionsCache = new Map<string, Extension[]>();
+
+/**
+ * Cached by language: `@uiw/react-codemirror` reconfigures the whole editor
+ * (a full re-highlight) whenever the `extensions` array it receives has a new
+ * reference, even if its contents are equivalent — see its `useCodeMirror`
+ * reconfigure effect. Every render used to build a fresh array here, so
+ * typing in any one field on a page with several code blocks (e.g. a
+ * laboratory's statement plus a student's answer) forced every other
+ * CodeMirror instance to fully reconfigure on every keystroke, which got
+ * progressively laggier the more/larger the code blocks were.
+ */
+export function extensionsFor(language: string): Extension[] {
+  let cached = extensionsCache.get(language);
+  if (!cached) {
+    cached = [...computeExtensionsFor(language), EditorView.lineWrapping];
+    extensionsCache.set(language, cached);
+  }
+  return cached;
+}
+
 interface CodeEditorProps {
   value: string;
   onChange?: (value: string) => void;
@@ -69,7 +91,7 @@ export function CodeEditor({ value, onChange, language, readOnly = false, height
       value={value}
       height={height}
       theme="light"
-      extensions={[...extensionsFor(language), EditorView.lineWrapping]}
+      extensions={extensionsFor(language)}
       editable={!readOnly}
       onChange={onChange}
       basicSetup={{ lineNumbers: true, foldGutter: true }}

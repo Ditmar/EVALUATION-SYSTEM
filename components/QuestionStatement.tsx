@@ -1,7 +1,6 @@
 "use client";
 
 import CodeMirror from "@uiw/react-codemirror";
-import { EditorView } from "@codemirror/view";
 import { extensionsFor } from "@/components/CodeEditor";
 import { parseStatement } from "@/lib/statement";
 
@@ -17,7 +16,7 @@ export function QuestionStatement({ statement, className = "" }: { statement: st
               value={segment.content}
               theme="light"
               editable={false}
-              extensions={[...extensionsFor(segment.language), EditorView.lineWrapping]}
+              extensions={extensionsFor(segment.language)}
               basicSetup={{ lineNumbers: false, foldGutter: false, highlightActiveLine: false }}
             />
           </div>
