@@ -158,5 +158,21 @@ export function parsePlaceholder(attrs: Record<string, string>): PlaceholderPars
       const language = attrs.language?.trim() || "text";
       return { question: { ...base, type, language, evaluator: evaluatorExplicit ?? "manual" } };
     }
+
+    case "github-pr": {
+      const source = attrs.source?.trim();
+      if (!source) {
+        return { errors: [{ questionId: id, message: `Question "${id}" uses type="github-pr" but does not define "source".` }] };
+      }
+      if (evaluatorExplicit === "automatic") {
+        return {
+          errors: [
+            { questionId: id, message: `Question "${id}" uses type="github-pr", which does not support evaluator="automatic".` },
+          ],
+        };
+      }
+      const evaluator: "manual" | "ai" = evaluatorExplicit === "ai" ? "ai" : "manual";
+      return { question: { ...base, type, source, evaluator } };
+    }
   }
 }

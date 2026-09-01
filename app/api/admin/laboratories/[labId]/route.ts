@@ -4,6 +4,7 @@ import type { LaboratoryStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireAdminSession } from "@/lib/auth/require-admin";
 import { parseLaboratory } from "@/lib/laboratory/parse-laboratory";
+import { resolveLaboratoryRepositorySnapshots, syncLaboratoryRepositories } from "@/lib/laboratory/repository-sync";
 
 export async function GET(request: NextRequest, { params }: { params: { labId: string } }) {
   const auth = await requireAdminSession(request);
@@ -50,10 +51,26 @@ export async function PATCH(request: NextRequest, { params }: { params: { labId:
   }
 
   if ("status" in parsedBody.data) {
+    const nextStatus = parsedBody.data.status.toUpperCase() as LaboratoryStatus;
     const laboratory = await prisma.laboratory.update({
       where: { id: existing.id },
-      data: { status: parsedBody.data.status.toUpperCase() as LaboratoryStatus },
+      data: { status: nextStatus },
     });
+
+    // Every (re-)publish is a fresh reproducibility checkpoint — the base
+    // repository's HEAD is re-resolved even if `{{repository}}` itself
+    // didn't change, so grading stays stable even if the branch moves later.
+    if (nextStatus === "PUBLISHED") {
+      try {
+        await resolveLaboratoryRepositorySnapshots(laboratory.id);
+      } catch (error) {
+        return NextResponse.json(
+          { error: `El laboratorio se publicó, pero no se pudo congelar el repositorio base: ${(error as Error).message}` },
+          { status: 502 }
+        );
+      }
+    }
+
     return NextResponse.json({ laboratory });
   }
 
@@ -81,6 +98,13 @@ export async function PATCH(request: NextRequest, { params }: { params: { labId:
       durationMinutes: parsed.laboratory.metadata.duration,
     },
   });
+
+  // Keeps LaboratoryRepository rows in sync with the markdown's current
+  // {{repository}} blocks — nulls a resource's frozen `commitSha` if its
+  // url/branch just changed, even on an already-published lab (this route
+  // doesn't otherwise gate on status), forcing an explicit republish before
+  // new GitHub submissions can be accepted against it.
+  await syncLaboratoryRepositories(laboratory.id, parsed.laboratory.repositories);
 
   return NextResponse.json({ laboratory, warnings: parsed.warnings });
 }

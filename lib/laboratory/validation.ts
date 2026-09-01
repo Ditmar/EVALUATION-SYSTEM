@@ -1,4 +1,4 @@
-import type { LaboratoryMetadata, LaboratoryParseError, LaboratoryParseWarning, QuestionDefinition, RubricDefinition } from "./types";
+import type { LaboratoryMetadata, LaboratoryParseError, LaboratoryParseWarning, QuestionDefinition, RepositoryResource, RubricDefinition } from "./types";
 
 /** Every `{{rubric for="..."}}` must point at a question id that actually exists. */
 export function validateRubricReferences(rubrics: RubricDefinition[], questions: QuestionDefinition[]): LaboratoryParseError[] {
@@ -6,6 +6,15 @@ export function validateRubricReferences(rubrics: RubricDefinition[], questions:
   return rubrics
     .filter((r) => !questionIds.has(r.for))
     .map((r) => ({ message: `Rubric references unknown question "${r.for}".` }));
+}
+
+/** Every `github-pr` question's `source` must point at a declared `{{repository}}` id. */
+export function validateRepositorySources(questions: QuestionDefinition[], repositories: RepositoryResource[]): LaboratoryParseError[] {
+  const repositoryIds = new Set(repositories.map((r) => r.id));
+  return questions
+    .filter((q): q is Extract<QuestionDefinition, { type: "github-pr" }> => q.type === "github-pr")
+    .filter((q) => !repositoryIds.has(q.source))
+    .map((q) => ({ questionId: q.id, message: `Question "${q.id}" references unknown repository "${q.source}".` }));
 }
 
 /**

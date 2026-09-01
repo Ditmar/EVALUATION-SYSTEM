@@ -72,7 +72,7 @@ model User {
   updatedAt    DateTime @updatedAt
 
   exams         Exam[]
-  gradedAnswers Answer[] @relation("GradedBy")
+  gradedAnswers Answer[]     @relation("GradedBy")
   subjects      Subject[]
   laboratories  Laboratory[]
 
@@ -278,7 +278,7 @@ model Answer {
   autoScore      Float?
   manualScore    Float?
   finalScore     Float?
-  teacherComment String? @db.Text
+  teacherComment String?  @db.Text
 
   gradedAt   DateTime?
   gradedById String?
@@ -347,7 +347,8 @@ model Laboratory {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  submissions LaboratorySubmission[]
+  submissions  LaboratorySubmission[]
+  repositories LaboratoryRepository[]
 
   @@unique([createdById, slug])
   @@index([createdById])
@@ -388,7 +389,8 @@ model LaboratorySubmission {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  aiEvaluations LaboratoryAiEvaluation[]
+  aiEvaluations  LaboratoryAiEvaluation[]
+  githubAttempts GitHubSubmissionAttempt[]
 
   @@unique([laboratoryId, studentId])
   @@index([laboratoryId, status])
@@ -404,10 +406,83 @@ model LaboratoryAiEvaluation {
   questionId     String
   suggestedScore Float
   feedback       String               @db.Text
+  /// [{ file, line?, reason }] — structured evidence for github-pr / rubric-graded reviews; null for older rows.
+  evidence       Json?
   rawResponse    Json
   model          String
   createdAt      DateTime             @default(now())
 
   @@index([submissionId])
   @@map("laboratory_ai_evaluations")
+}
+
+// A `{{repository}}` resource declared in a laboratory's Markdown. `commitSha`
+// is the HEAD of `branch` resolved and frozen at the moment the laboratory
+// was last actually published (not on every markdown edit) — every
+// GitHubSubmissionAttempt's `baseCommitSha` is pinned to this value, so
+// grading stays reproducible even if the branch moves after publishing.
+// Null until the first publish, and reset to null if the teacher changes
+// `repositoryUrl`/`branch` on an already-published lab (see the admin route
+// that upserts this) until the lab is explicitly republished.
+model LaboratoryRepository {
+  id           String     @id @default(cuid())
+  laboratoryId String
+  laboratory   Laboratory @relation(fields: [laboratoryId], references: [id], onDelete: Cascade)
+
+  resourceId    String // the `id` from {{repository id="..."}}
+  provider      String  @default("github")
+  repositoryUrl String
+  branch        String
+  commitSha     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([laboratoryId, resourceId])
+  @@index([laboratoryId])
+  @@map("laboratory_repositories")
+}
+
+// One row per GitHub PR submission attempt for a (submission, question) pair.
+// Only `github-pr` answers have a notion of "attempts" — every other answer
+// type is already covered by autosave — so this is scoped narrowly here
+// rather than restructuring LaboratorySubmission into a generic
+// Submission/Attempt hierarchy. "Current" attempt = the row with the highest
+// `attemptNumber` for a given (submissionId, questionId).
+model GitHubSubmissionAttempt {
+  id           String               @id @default(cuid())
+  submissionId String
+  submission   LaboratorySubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  questionId   String
+
+  attemptNumber Int
+
+  sourceRepositoryUrl String
+  sourceBranch        String
+
+  headRepositoryOwner String
+  headRepositoryName  String
+  headBranch          String
+  pullRequestUrl      String
+  pullRequestNumber   Int
+  /// "open" | "closed" | "merged" — validated in TS (lib/github/types.ts), not a Prisma enum: this mirrors how the schema already stores other external-system vocabulary as plain strings rather than minting enums for it.
+  pullRequestState    String
+
+  // `baseCommitSha` is a copied scalar, not a foreign key to
+  // LaboratoryRepository.commitSha — this is what makes an already-created
+  // attempt immune to the repository row's commitSha later being reset to
+  // null (see LaboratoryRepository's doc comment above).
+  baseCommitSha      String
+  submittedCommitSha String
+
+  filesChanged Int
+  commitsCount Int
+  additions    Int
+  deletions    Int
+
+  submittedAt DateTime @default(now())
+
+  @@unique([submissionId, questionId, attemptNumber])
+  @@index([submissionId, questionId])
+  @@map("github_submission_attempts")
 }

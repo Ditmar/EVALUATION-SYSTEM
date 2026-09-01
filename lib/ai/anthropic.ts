@@ -6,7 +6,7 @@ import type {
   TextEvaluationInput,
   TextEvaluationResult,
 } from "./provider";
-import { buildEvaluationPrompt, buildTextEvaluationPrompt, clampScore, extractJsonPayload } from "./prompt";
+import { buildEvaluationPrompt, buildTextEvaluationPrompt, clampScore, extractJsonPayload, parseConfidence, parseEvidence } from "./prompt";
 
 const MODEL = process.env.AI_MODEL || "claude-sonnet-5";
 
@@ -61,11 +61,15 @@ export class AnthropicProvider implements AiProvider {
     const parsed = JSON.parse(extractJsonPayload(firstTextBlock(response))) as {
       score: number;
       feedback: string;
+      evidence?: unknown;
+      confidence?: unknown;
     };
 
     return {
       suggestedScore: clampScore(parsed.score, input.maxPoints),
       feedback: String(parsed.feedback ?? ""),
+      evidence: parseEvidence(parsed.evidence),
+      confidence: parseConfidence(parsed.confidence),
       raw: response,
       model: MODEL,
     };

@@ -10,6 +10,7 @@ import { Modal } from "@/components/ui/Modal";
 import { studentFetch } from "@/lib/client/student-fetch";
 import type { AnswerValue } from "@/lib/laboratory/types";
 import type { StudentSafeLaboratory } from "@/lib/laboratory/strip-answer-key";
+import type { GithubAttemptSummary } from "@/components/laboratory/answers/types";
 
 const AUTOSAVE_DEBOUNCE_MS = 800;
 
@@ -33,6 +34,7 @@ export function LaboratoryAttempt({ labId }: { labId: string }) {
   const [autosave, setAutosave] = useState<AutosaveState>("idle");
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [githubAttempts, setGithubAttempts] = useState<Record<string, GithubAttemptSummary>>({});
 
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
@@ -48,6 +50,7 @@ export function LaboratoryAttempt({ labId }: { labId: string }) {
       setAnswers(data.answers ?? {});
       setStatus(data.status);
       setTotalScore(data.totalScore);
+      setGithubAttempts(data.githubAttempts ?? {});
       setScreen(data.status === "IN_PROGRESS" ? "ready" : "submitted");
     });
   }, [labId]);
@@ -131,6 +134,9 @@ export function LaboratoryAttempt({ labId }: { labId: string }) {
           answers={answers}
           onAnswerChange={screen === "ready" ? handleAnswerChange : undefined}
           disabled={screen !== "ready"}
+          labId={labId}
+          repositories={laboratory.repositories}
+          githubAttempts={githubAttempts}
         />
       </Card>
 

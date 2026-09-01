@@ -1,4 +1,4 @@
-import type { CodeEvaluationInput, TextEvaluationInput } from "./provider";
+import type { CodeEvaluationInput, EvidenceItem, TextEvaluationInput } from "./provider";
 
 /**
  * Shared prompt-building and response-parsing so every AiProvider adapter
@@ -21,13 +21,22 @@ export function buildEvaluationPrompt(input: CodeEvaluationInput): string {
     .join("\n\n");
 }
 
-/** Same JSON contract as `buildEvaluationPrompt`, for a free-text answer graded against a rubric instead of code. */
+/**
+ * Same JSON contract as `buildEvaluationPrompt`, for a free-text answer
+ * graded against a rubric instead of code — this also covers `github-pr`
+ * reviews: the caller just passes a formatted diff (see
+ * `lib/laboratory/evaluation/repository-context.ts`) as `studentAnswer`,
+ * this function has no idea the "answer" originated from GitHub.
+ */
 export function buildTextEvaluationPrompt(input: TextEvaluationInput): string {
   return [
     `Eres un asistente que ayuda a un docente a calificar la respuesta escrita de un estudiante en un laboratorio.`,
-    `Responde ÚNICAMENTE con un objeto JSON de la forma exacta {"score": number, "feedback": string}.`,
+    `Responde ÚNICAMENTE con un objeto JSON de la forma exacta {"score": number, "feedback": string, "evidence": [{"file": string, "line": number, "reason": string}], "confidence": number}.`,
     `El score debe estar entre 0 y ${input.maxPoints}.`,
     `El feedback debe ser breve (máximo 3 líneas), objetivo y en español.`,
+    `"evidence" es opcional: si la respuesta del estudiante incluye cambios de código o archivos identificables, cita los archivos/líneas concretos que respaldan tu evaluación; si no aplica (una respuesta de texto simple), responde "evidence": [].`,
+    `Si la respuesta incluye un diff de código, evalúa principalmente los cambios introducidos por el estudiante — no le atribuyas mérito a código que ya existía antes de sus cambios.`,
+    `"confidence" es un número entre 0 y 1 que refleja tu propia certeza sobre el puntaje asignado.`,
     ``,
     `Pregunta: ${input.question}`,
     input.rubric ? `Rúbrica de calificación:\n${input.rubric}` : "",
@@ -35,6 +44,26 @@ export function buildTextEvaluationPrompt(input: TextEvaluationInput): string {
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+/** Safely coerces the parsed JSON's `evidence` field — never trust a model's output shape blindly. */
+export function parseEvidence(value: unknown): EvidenceItem[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const items = value
+    .filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null)
+    .map((item) => ({
+      file: typeof item.file === "string" ? item.file : "",
+      line: typeof item.line === "number" ? item.line : undefined,
+      reason: typeof item.reason === "string" ? item.reason : "",
+    }))
+    .filter((item) => item.file || item.reason);
+  return items.length > 0 ? items : undefined;
+}
+
+/** Safely coerces the parsed JSON's self-reported `confidence` field into a 0..1 number, or `undefined` if absent/invalid. */
+export function parseConfidence(value: unknown): number | undefined {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, Math.min(1, parsed)) : undefined;
 }
 
 export function extractJsonPayload(text: string): string {

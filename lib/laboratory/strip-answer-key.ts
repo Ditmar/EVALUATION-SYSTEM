@@ -31,6 +31,8 @@ export interface StudentSafeLaboratory {
   metadata: LaboratoryDefinition["metadata"];
   content: LaboratoryDefinition["content"];
   questions: StudentSafeQuestion[];
+  /** Public GitHub repo URLs the student needs to fork — not secret, unlike `rubrics`. */
+  repositories: LaboratoryDefinition["repositories"];
 }
 
 /**
@@ -43,5 +45,6 @@ export function toStudentLaboratory(laboratory: LaboratoryDefinition): StudentSa
     metadata: laboratory.metadata,
     content: laboratory.content,
     questions: laboratory.questions.map(stripAnswerKey),
+    repositories: laboratory.repositories,
   };
 }

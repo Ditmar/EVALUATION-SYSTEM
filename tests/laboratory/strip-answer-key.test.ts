@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { stripAnswerKey, toStudentLaboratory } from "@/lib/laboratory/strip-answer-key";
-import type { LaboratoryDefinition, NumberQuestion, SingleChoiceQuestion } from "@/lib/laboratory/types";
+import type { GitHubPullRequestQuestion, LaboratoryDefinition, NumberQuestion, SingleChoiceQuestion } from "@/lib/laboratory/types";
 
 describe("stripAnswerKey", () => {
   it("removes correct/expected/tolerance from a question", () => {
@@ -36,10 +36,26 @@ describe("stripAnswerKey", () => {
     expect(safe.correct).toBeUndefined();
     expect(safe.options).toEqual(["BFS", "Dijkstra"]);
   });
+
+  it("keeps a github-pr question's shape intact (no answer-key fields to strip)", () => {
+    const question: GitHubPullRequestQuestion = {
+      id: "solid-pr",
+      type: "github-pr",
+      points: 35,
+      required: true,
+      evaluator: "ai",
+      source: "base-repository",
+    };
+
+    const safe = stripAnswerKey(question) as Record<string, unknown>;
+    expect(safe.source).toBe("base-repository");
+    expect(safe.type).toBe("github-pr");
+    expect(safe.evaluator).toBe("ai");
+  });
 });
 
 describe("toStudentLaboratory", () => {
-  it("never includes rubrics in the student-facing payload", () => {
+  it("never includes rubrics in the student-facing payload, but keeps repositories", () => {
     const laboratory: LaboratoryDefinition = {
       metadata: { id: "lab-1", title: "T", version: 1, status: "draft" },
       content: [],
@@ -47,10 +63,12 @@ describe("toStudentLaboratory", () => {
         { id: "q1", type: "textarea", points: 10, required: true, evaluator: "ai" },
       ],
       rubrics: [{ for: "q1", content: "Rúbrica secreta que no debe llegar al estudiante." }],
+      repositories: [{ id: "base-repository", provider: "github", url: "https://github.com/org/repo", branch: "main" }],
     };
 
     const safe = toStudentLaboratory(laboratory) as unknown as Record<string, unknown>;
     expect(safe.rubrics).toBeUndefined();
     expect(safe.questions).toHaveLength(1);
+    expect(safe.repositories).toEqual(laboratory.repositories);
   });
 });

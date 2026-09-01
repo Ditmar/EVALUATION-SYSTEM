@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireAdminSession } from "@/lib/auth/require-admin";
 import { parseLaboratory } from "@/lib/laboratory/parse-laboratory";
+import { resolveLaboratoryRepositorySnapshots, syncLaboratoryRepositories } from "@/lib/laboratory/repository-sync";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdminSession(request);
@@ -87,6 +88,18 @@ export async function POST(request: NextRequest) {
         createdById: auth.session.userId,
       },
     });
+
+    await syncLaboratoryRepositories(laboratory.id, parsed.laboratory.repositories);
+    if (laboratory.status === "PUBLISHED") {
+      try {
+        await resolveLaboratoryRepositorySnapshots(laboratory.id);
+      } catch (error) {
+        return NextResponse.json(
+          { error: `El laboratorio se guardó, pero no se pudo congelar el repositorio base: ${(error as Error).message}` },
+          { status: 502 }
+        );
+      }
+    }
 
     return NextResponse.json(
       {

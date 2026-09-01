@@ -4,10 +4,17 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 
+export interface AiEvaluationEvidence {
+  file: string;
+  line?: number;
+  reason: string;
+}
+
 export interface AiEvaluationRecord {
   id: string;
   suggestedScore: number;
   feedback: string;
+  evidence?: AiEvaluationEvidence[] | null;
   model: string;
   createdAt: string;
 }
@@ -70,6 +77,19 @@ export function LaboratoryAiSuggestion({ labId, submissionId, questionId, maxPoi
                 </button>
               </div>
               <p className="text-slate-700">{ev.feedback}</p>
+              {ev.evidence && ev.evidence.length > 0 && (
+                <ul className="mt-2 space-y-1 border-t border-slate-100 pt-2 text-xs text-slate-600">
+                  {ev.evidence.map((item, i) => (
+                    <li key={i}>
+                      <span className="font-mono text-slate-500">
+                        {item.file}
+                        {item.line !== undefined ? `:${item.line}` : ""}
+                      </span>{" "}
+                      — {item.reason}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </li>
           ))}
         </ul>

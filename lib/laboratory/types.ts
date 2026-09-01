@@ -30,6 +30,7 @@ export const QUESTION_TYPES = [
   "multiple-choice",
   "select",
   "code",
+  "github-pr",
 ] as const;
 
 export type QuestionType = (typeof QUESTION_TYPES)[number];
@@ -95,6 +96,20 @@ export interface CodeQuestion extends BaseQuestion {
   language: string;
 }
 
+/**
+ * `evaluator` is narrowed to exclude `"automatic"` — a Pull Request can never
+ * be graded by a deterministic rule, so this type never appears in
+ * `AUTOMATIC_EVALUATORS` (see evaluation/engine.ts). `Omit<BaseQuestion,...>`
+ * is required here, not just stylistic: TypeScript won't let a subinterface
+ * narrow an inherited property's type via plain `extends`.
+ */
+export interface GitHubPullRequestQuestion extends Omit<BaseQuestion, "evaluator"> {
+  type: "github-pr";
+  /** Must match the `id` of a `{{repository}}` declared in the same document. */
+  source: string;
+  evaluator: "manual" | "ai";
+}
+
 export type QuestionDefinition =
   | TextQuestion
   | TextareaQuestion
@@ -103,7 +118,23 @@ export type QuestionDefinition =
   | SingleChoiceQuestion
   | MultipleChoiceQuestion
   | SelectQuestion
-  | CodeQuestion;
+  | CodeQuestion
+  | GitHubPullRequestQuestion;
+
+export const REPOSITORY_PROVIDERS = ["github"] as const;
+export type RepositoryProvider = (typeof REPOSITORY_PROVIDERS)[number];
+
+/**
+ * A `{{repository}}` declaration — a laboratory-level resource, not a
+ * student answer. Extracted from the raw Markdown before parsing (like
+ * rubrics), never rendered inline in `content[]`.
+ */
+export interface RepositoryResource {
+  id: string;
+  provider: RepositoryProvider;
+  url: string;
+  branch: string;
+}
 
 /** Answer value shapes, keyed by question id, as stored in a submission's `answers` JSON. */
 export type AnswerValue = string | number | boolean | string[];
@@ -147,6 +178,7 @@ export interface LaboratoryDefinition {
   content: LaboratoryNode[];
   questions: QuestionDefinition[];
   rubrics: RubricDefinition[];
+  repositories: RepositoryResource[];
 }
 
 export interface LaboratoryParseError {

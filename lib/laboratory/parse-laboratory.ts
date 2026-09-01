@@ -3,8 +3,9 @@ import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
 import { extractRubrics } from "./extract-rubrics";
+import { extractRepositories } from "./extract-repositories";
 import { parsePlaceholder, parsePlaceholderAttributes } from "./parse-placeholder";
-import { checkPointsTotal, validateRubricReferences } from "./validation";
+import { checkPointsTotal, validateRepositorySources, validateRubricReferences } from "./validation";
 import type {
   LaboratoryMetadata,
   LaboratoryNode,
@@ -248,7 +249,9 @@ export function parseLaboratory(markdownSource: string): LaboratoryParseResult {
   }
   const { metadata } = metadataResult;
 
-  const { source: body, rubrics } = extractRubrics(content);
+  const { source: afterRubrics, rubrics } = extractRubrics(content);
+  const { source: body, repositories, errors: repositoryErrors } = extractRepositories(afterRubrics);
+  errors.push(...repositoryErrors);
 
   const tree = unified().use(remarkParse).use(remarkGfm).parse(body) as unknown as { children: MdastLikeNode[] };
 
@@ -272,6 +275,7 @@ export function parseLaboratory(markdownSource: string): LaboratoryParseResult {
   }
 
   errors.push(...validateRubricReferences(rubrics, questions));
+  errors.push(...validateRepositorySources(questions, repositories));
 
   if (errors.length > 0) {
     return { ok: false, errors };
@@ -283,7 +287,7 @@ export function parseLaboratory(markdownSource: string): LaboratoryParseResult {
 
   return {
     ok: true,
-    laboratory: { metadata, content: contentNodes, questions, rubrics },
+    laboratory: { metadata, content: contentNodes, questions, rubrics, repositories },
     warnings,
   };
 }

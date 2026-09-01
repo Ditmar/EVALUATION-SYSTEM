@@ -172,6 +172,72 @@ describe("parseLaboratory", () => {
     expect(result.laboratory.questions[0].context).toBe("Explique por qué Dijkstra encuentra el camino mínimo.");
   });
 
+  it("parses a valid github-pr question with its repository resource", () => {
+    const result = parseLaboratory(
+      fixture(
+        `{{repository id="base-repository" provider="github" url="https://github.com/Ditmar/lab1-seminario" branch="main"}}\n\n{{answer id="solid-pr" type="github-pr" source="base-repository" points="35" evaluator="ai"}}\n`
+      )
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.laboratory.repositories).toEqual([
+      { id: "base-repository", provider: "github", url: "https://github.com/Ditmar/lab1-seminario", branch: "main" },
+    ]);
+    expect(result.laboratory.questions[0]).toMatchObject({ type: "github-pr", source: "base-repository", evaluator: "ai" });
+    // {{repository}} is lab-level metadata, not renderable content.
+    expect(result.laboratory.content.some((n) => JSON.stringify(n).includes("repository"))).toBe(false);
+  });
+
+  it('rejects a github-pr question missing "source"', () => {
+    const result = parseLaboratory(fixture(`{{answer id="solid-pr" type="github-pr" points="35"}}\n`));
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors[0].message).toContain('does not define "source"');
+  });
+
+  it("rejects a github-pr question whose source references an unknown repository", () => {
+    const result = parseLaboratory(fixture(`{{answer id="solid-pr" type="github-pr" source="does-not-exist" points="35"}}\n`));
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors.some((e) => e.message === 'Question "solid-pr" references unknown repository "does-not-exist".')).toBe(true);
+  });
+
+  it("defaults a github-pr question's evaluator to manual", () => {
+    const result = parseLaboratory(
+      fixture(
+        `{{repository id="base-repository" provider="github" url="https://github.com/org/repo"}}\n\n{{answer id="solid-pr" type="github-pr" source="base-repository" points="35"}}\n`
+      )
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.laboratory.questions[0].evaluator).toBe("manual");
+  });
+
+  it("accepts evaluator=ai for a github-pr question", () => {
+    const result = parseLaboratory(
+      fixture(
+        `{{repository id="base-repository" provider="github" url="https://github.com/org/repo"}}\n\n{{answer id="solid-pr" type="github-pr" source="base-repository" points="35" evaluator="ai"}}\n`
+      )
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.laboratory.questions[0].evaluator).toBe("ai");
+  });
+
+  it("rejects evaluator=automatic for a github-pr question", () => {
+    const result = parseLaboratory(
+      fixture(
+        `{{repository id="base-repository" provider="github" url="https://github.com/org/repo"}}\n\n{{answer id="solid-pr" type="github-pr" source="base-repository" points="35" evaluator="automatic"}}\n`
+      )
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors[0].message).toContain('does not support evaluator="automatic"');
+  });
+
   it("requires frontmatter id and title", () => {
     const result = parseLaboratory("---\nversion: 1\n---\n\nSin id ni title.\n");
 

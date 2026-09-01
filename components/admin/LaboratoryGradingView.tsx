@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/ToastProvider";
 import { answerRegistry } from "@/components/laboratory/answers/registry";
 import { LaboratoryAiSuggestion, type AiEvaluationRecord } from "@/components/admin/LaboratoryAiSuggestion";
+import { GitHubReviewPanel } from "@/components/admin/GitHubReviewPanel";
 import type { AnswerValue, GradingMap, LaboratoryDefinition, QuestionDefinition } from "@/lib/laboratory/types";
 
 interface AiEvalWithQuestion extends AiEvaluationRecord {
@@ -147,7 +148,11 @@ export function LaboratoryGradingView({
 
             <div className="mb-3">
               <p className="mb-1 text-xs font-medium uppercase text-slate-500">Respuesta del estudiante</p>
-              <AnswerComponent question={question} value={submission.answers[question.id]} onChange={() => {}} disabled />
+              {question.type === "github-pr" ? (
+                <GitHubReviewPanel labId={labId} submissionId={submission.id} questionId={question.id} />
+              ) : (
+                <AnswerComponent question={question} value={submission.answers[question.id]} onChange={() => {}} disabled />
+              )}
             </div>
 
             {question.evaluator === "automatic" && (

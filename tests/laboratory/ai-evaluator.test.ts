@@ -34,4 +34,24 @@ describe("evaluateWithAi", () => {
     });
     expect(suggestion.confidence).toBeUndefined();
   });
+
+  it("passes evidence and confidence through when the provider returns them", async () => {
+    evaluateTextAnswer.mockResolvedValueOnce({
+      suggestedScore: 27,
+      feedback: "Buena mejora de SRP y OCP.",
+      evidence: [{ file: "src/services/OrderService.ts", line: 14, reason: "EmailService continúa instanciándose directamente." }],
+      confidence: 0.88,
+      raw: { mocked: true },
+      model: "mock-model",
+    });
+
+    const { evaluateWithAi } = await import("@/lib/laboratory/evaluation/ai");
+    const question: TextareaQuestion = { id: "solid-pr", type: "textarea", points: 35, required: true, evaluator: "ai" };
+    const suggestion = await evaluateWithAi(question, "Analiza los cambios.", "Evalúa SOLID.", "diff formateado...");
+
+    expect(suggestion.evidence).toEqual([
+      { file: "src/services/OrderService.ts", line: 14, reason: "EmailService continúa instanciándose directamente." },
+    ]);
+    expect(suggestion.confidence).toBe(0.88);
+  });
 });

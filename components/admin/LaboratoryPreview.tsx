@@ -37,7 +37,13 @@ export function LaboratoryPreview({ laboratory, warnings = [] }: { laboratory: L
 
       <div className="mb-2 mt-6 text-sm font-medium text-slate-700">Vista previa</div>
       <div className="rounded-lg border border-slate-200 p-4">
-        <LaboratoryRenderer content={laboratory.content} questions={laboratory.questions} answers={{}} disabled />
+        <LaboratoryRenderer
+          content={laboratory.content}
+          questions={laboratory.questions}
+          answers={{}}
+          repositories={laboratory.repositories}
+          disabled
+        />
       </div>
 
       <div className="mb-2 mt-6 text-sm font-medium text-slate-700">Preguntas ({laboratory.questions.length})</div>

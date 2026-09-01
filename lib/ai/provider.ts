@@ -21,9 +21,19 @@ export interface TextEvaluationInput {
   maxPoints: number;
 }
 
+export interface EvidenceItem {
+  file: string;
+  line?: number;
+  reason: string;
+}
+
 export interface TextEvaluationResult {
   suggestedScore: number;
   feedback: string;
+  /** Populated when the model can point at specific evidence (e.g. a code diff) — empty/absent for plain prose answers. */
+  evidence?: EvidenceItem[];
+  /** Self-reported by the model; neither adapter computes a calibrated value, so treat this as a soft signal only. */
+  confidence?: number;
   raw: unknown;
   model: string;
 }

@@ -6,6 +6,7 @@ import { parseLaboratory } from "@/lib/laboratory/parse-laboratory";
 import { toStudentLaboratory } from "@/lib/laboratory/strip-answer-key";
 import { evaluate } from "@/lib/laboratory/evaluation/engine";
 import { computeTotalScore } from "@/lib/laboratory/submission";
+import { getLatestGithubAttemptsBySubmission } from "@/lib/laboratory/github-attempts";
 import type { AnswersMap, GradingMap } from "@/lib/laboratory/types";
 
 async function requireEnrolledPublishedLab(labId: string, studentId: string) {
@@ -54,12 +55,18 @@ export async function GET(request: NextRequest, { params }: { params: { labId: s
     return NextResponse.json({ error: "No se pudo interpretar el laboratorio." }, { status: 500 });
   }
 
+  // Hydrates "you already submitted PR #4, commit a81f27..." on page load
+  // without a second round-trip — only populated for github-pr questions.
+  const latestAttempts = await getLatestGithubAttemptsBySubmission(submission.id);
+  const githubAttempts = Object.fromEntries(latestAttempts.entries());
+
   return NextResponse.json({
     laboratory: toStudentLaboratory(parsed.laboratory),
     submissionId: submission.id,
     status: submission.status,
     answers: submission.answers,
     totalScore: submission.totalScore,
+    githubAttempts,
   });
 }
 

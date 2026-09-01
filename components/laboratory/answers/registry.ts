@@ -7,6 +7,7 @@ import { SingleChoiceAnswer } from "./SingleChoiceAnswer";
 import { MultipleChoiceAnswer } from "./MultipleChoiceAnswer";
 import { SelectAnswer } from "./SelectAnswer";
 import { CodeAnswer } from "./CodeAnswer";
+import { GitHubPrAnswer } from "./GitHubPrAnswer";
 import type { AnswerComponent } from "./types";
 
 /**
@@ -23,4 +24,5 @@ export const answerRegistry: Record<QuestionType, AnswerComponent> = {
   "multiple-choice": MultipleChoiceAnswer,
   select: SelectAnswer,
   code: CodeAnswer,
+  "github-pr": GitHubPrAnswer,
 };

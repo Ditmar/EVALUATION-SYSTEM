@@ -1,8 +1,9 @@
 "use client";
 
-import type { AnswerValue, LaboratoryNode, QuestionDefinition } from "@/lib/laboratory/types";
+import type { AnswerValue, LaboratoryNode, QuestionDefinition, RepositoryResource } from "@/lib/laboratory/types";
 import { CodeEditor } from "@/components/CodeEditor";
 import { answerRegistry } from "./answers/registry";
+import type { GithubAttemptSummary } from "./answers/types";
 
 export interface LaboratoryRendererProps {
   content: LaboratoryNode[];
@@ -10,13 +11,20 @@ export interface LaboratoryRendererProps {
   answers: Record<string, AnswerValue>;
   onAnswerChange?: (questionId: string, value: AnswerValue) => void;
   disabled?: boolean;
+  /** Needed only by `github-pr` questions, to build their request URLs — a no-op for every other type. */
+  labId?: string;
+  repositories?: RepositoryResource[];
+  githubAttempts?: Record<string, GithubAttemptSummary>;
 }
 
 interface RenderContext {
   questionsById: Map<string, QuestionDefinition>;
+  repositoriesById: Map<string, RepositoryResource>;
   answers: Record<string, AnswerValue>;
   onAnswerChange?: (questionId: string, value: AnswerValue) => void;
   disabled?: boolean;
+  labId?: string;
+  githubAttempts?: Record<string, GithubAttemptSummary>;
 }
 
 const HEADING_CLASSES: Record<number, string> = {
@@ -41,15 +49,33 @@ const HEADING_CLASSES: Record<number, string> = {
  * parent/child element structure, and an extra wrapper there would be
  * reparented or dropped by the browser's HTML parser.
  */
-export function LaboratoryRenderer({ content, questions, answers, onAnswerChange, disabled }: LaboratoryRendererProps) {
+export function LaboratoryRenderer({
+  content,
+  questions,
+  answers,
+  onAnswerChange,
+  disabled,
+  labId,
+  repositories = [],
+  githubAttempts,
+}: LaboratoryRendererProps) {
   const ctx: RenderContext = {
     questionsById: new Map(questions.map((q) => [q.id, q])),
+    repositoriesById: new Map(repositories.map((r) => [r.id, r])),
     answers,
     onAnswerChange,
     disabled,
+    labId,
+    githubAttempts,
   };
 
   return <div className="laboratory-content space-y-4">{renderNodes(content, ctx)}</div>;
+}
+
+/** Returns the question id when `children` is just one `labAnswer` (ignoring pure-whitespace text around it), else `null`. */
+function getSoleAnswerId(children: LaboratoryNode[]): string | null {
+  const meaningful = children.filter((c) => !(c.type === "text" && c.value.trim() === ""));
+  return meaningful.length === 1 && meaningful[0].type === "labAnswer" ? meaningful[0].questionId : null;
 }
 
 function renderNodes(nodes: LaboratoryNode[], ctx: RenderContext): React.ReactNode[] {
@@ -66,12 +92,23 @@ function renderNode(node: LaboratoryNode, ctx: RenderContext, key: number): Reac
         </Tag>
       );
     }
-    case "paragraph":
+    case "paragraph": {
+      // A paragraph consisting solely of one `{{answer}}` placeholder (the
+      // normal way to write one — on its own line) renders the answer
+      // directly, without a `<p>` wrapper: some answer types (`github-pr`)
+      // render their own block-level markup, and a block element nested
+      // inside a `<p>` is invalid HTML that the browser silently reparents,
+      // breaking layout and causing a hydration mismatch.
+      const soleAnswerId = getSoleAnswerId(node.children);
+      if (soleAnswerId) {
+        return renderAnswer(soleAnswerId, ctx, key);
+      }
       return (
         <p key={key} className="leading-relaxed text-slate-700">
           {renderNodes(node.children, ctx)}
         </p>
       );
+    }
     case "text":
       return node.value;
     case "strong":
@@ -180,19 +217,41 @@ function renderAnswer(questionId: string, ctx: RenderContext, key: number): Reac
 
   const AnswerComponent = answerRegistry[question.type];
   const value = ctx.answers[questionId];
+  const caption = (
+    <span className="text-xs text-slate-400">
+      {question.points} {question.points === 1 ? "punto" : "puntos"}
+      {!question.required && " · opcional"}
+    </span>
+  );
+
+  const answerElement = (
+    <AnswerComponent
+      question={question}
+      value={value}
+      onChange={(next) => ctx.onAnswerChange?.(questionId, next)}
+      disabled={ctx.disabled}
+      labId={ctx.labId}
+      githubAttempt={ctx.githubAttempts?.[questionId]}
+      repository={question.type === "github-pr" ? ctx.repositoriesById.get(question.source) : undefined}
+    />
+  );
+
+  // `github-pr` renders its own full-width block (repo link, URL input,
+  // checklist) — the narrow inline-flex span every other answer type uses
+  // would cramp it to shrink-to-fit sizing instead of the page's width.
+  if (question.type === "github-pr") {
+    return (
+      <div key={key} className="my-2 space-y-1">
+        {answerElement}
+        {caption}
+      </div>
+    );
+  }
 
   return (
     <span key={key} className="my-1 inline-flex min-w-[16rem] flex-col gap-1 align-top">
-      <AnswerComponent
-        question={question}
-        value={value}
-        onChange={(next) => ctx.onAnswerChange?.(questionId, next)}
-        disabled={ctx.disabled}
-      />
-      <span className="text-xs text-slate-400">
-        {question.points} {question.points === 1 ? "punto" : "puntos"}
-        {!question.required && " · opcional"}
-      </span>
+      {answerElement}
+      {caption}
     </span>
   );
 }
