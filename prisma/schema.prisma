@@ -50,6 +50,18 @@ enum ExamAccessMode {
   REGISTERED
 }
 
+enum LaboratoryStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum LaboratorySubmissionStatus {
+  IN_PROGRESS
+  SUBMITTED
+  GRADED
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -62,6 +74,7 @@ model User {
   exams         Exam[]
   gradedAnswers Answer[] @relation("GradedBy")
   subjects      Subject[]
+  laboratories  Laboratory[]
 
   @@map("users")
 }
@@ -74,8 +87,9 @@ model Subject {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  exams       Exam[]
-  enrollments Enrollment[]
+  exams        Exam[]
+  enrollments  Enrollment[]
+  laboratories Laboratory[]
 
   @@unique([createdById, name])
   @@index([createdById])
@@ -92,9 +106,10 @@ model Student {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  enrollments   Enrollment[]
-  refreshTokens StudentRefreshToken[]
-  examAttempts  ExamAttempt[]
+  enrollments           Enrollment[]
+  refreshTokens         StudentRefreshToken[]
+  examAttempts          ExamAttempt[]
+  laboratorySubmissions LaboratorySubmission[]
 
   @@map("students")
 }
@@ -304,4 +319,95 @@ model AiEvaluation {
 
   @@index([answerId])
   @@map("ai_evaluations")
+}
+
+// Laboratories are authored as Markdown (Laboratory Markdown Specification
+// v0.1, see lib/laboratory/laboratory-spec.md), not as normalized questions
+// like Exam/Question — `markdownSource` is the source of truth, re-parsed on
+// read via lib/laboratory/parse-laboratory.ts.
+model Laboratory {
+  id String @id @default(cuid())
+
+  // The `id` from the Markdown frontmatter, not a routing slug (labs are
+  // still routed by cuid, like exams) — unique per teacher, not globally.
+  slug            String
+  title           String
+  markdownSource  String           @db.Text
+  version         Int              @default(1)
+  totalPoints     Float
+  durationMinutes Int?
+  status          LaboratoryStatus @default(DRAFT)
+
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  submissions LaboratorySubmission[]
+
+  @@unique([createdById, slug])
+  @@index([createdById])
+  @@index([subjectId])
+  @@map("laboratories")
+}
+
+model LaboratorySubmission {
+  id           String     @id @default(cuid())
+  laboratoryId String
+  laboratory   Laboratory @relation(fields: [laboratoryId], references: [id], onDelete: Cascade)
+
+  // A teacher may edit and republish a Laboratory after a student has
+  // started answering it; `markdownSnapshot` is the exact source the student
+  // answered against, so the submission stays reproducible and gradable
+  // regardless of later edits (`laboratoryVersion` is kept alongside for
+  // display/sorting, but the snapshot — not a version lookup — is the source
+  // of truth for re-rendering/re-grading this submission).
+  laboratoryVersion Int
+  markdownSnapshot  String @db.Text
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  status LaboratorySubmissionStatus @default(IN_PROGRESS)
+
+  // { [questionId]: string | number | boolean | string[] }
+  answers Json @default("{}")
+  // { [questionId]: { evaluator, status, autoScore?, manualScore?, finalScore, feedback? } }
+  grading Json @default("{}")
+
+  totalScore Float?
+
+  startedAt   DateTime  @default(now())
+  submittedAt DateTime?
+  gradedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  aiEvaluations LaboratoryAiEvaluation[]
+
+  @@unique([laboratoryId, studentId])
+  @@index([laboratoryId, status])
+  @@map("laboratory_submissions")
+}
+
+/// Mirrors AiEvaluation (exam code answers) but keyed by submission+question
+/// id, since lab questions aren't normalized DB rows the way exam Answers are.
+model LaboratoryAiEvaluation {
+  id             String               @id @default(cuid())
+  submissionId   String
+  submission     LaboratorySubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  questionId     String
+  suggestedScore Float
+  feedback       String               @db.Text
+  rawResponse    Json
+  model          String
+  createdAt      DateTime             @default(now())
+
+  @@index([submissionId])
+  @@map("laboratory_ai_evaluations")
 }

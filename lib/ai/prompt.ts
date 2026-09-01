@@ -1,4 +1,4 @@
-import type { CodeEvaluationInput } from "./provider";
+import type { CodeEvaluationInput, TextEvaluationInput } from "./provider";
 
 /**
  * Shared prompt-building and response-parsing so every AiProvider adapter
@@ -16,6 +16,22 @@ export function buildEvaluationPrompt(input: CodeEvaluationInput): string {
     input.expectedSolution ? `Solución de referencia:\n${input.expectedSolution}` : "",
     input.rubric ? `Rúbrica:\n${input.rubric}` : "",
     `Respuesta del estudiante:\n${input.studentCode}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+/** Same JSON contract as `buildEvaluationPrompt`, for a free-text answer graded against a rubric instead of code. */
+export function buildTextEvaluationPrompt(input: TextEvaluationInput): string {
+  return [
+    `Eres un asistente que ayuda a un docente a calificar la respuesta escrita de un estudiante en un laboratorio.`,
+    `Responde ÚNICAMENTE con un objeto JSON de la forma exacta {"score": number, "feedback": string}.`,
+    `El score debe estar entre 0 y ${input.maxPoints}.`,
+    `El feedback debe ser breve (máximo 3 líneas), objetivo y en español.`,
+    ``,
+    `Pregunta: ${input.question}`,
+    input.rubric ? `Rúbrica de calificación:\n${input.rubric}` : "",
+    `Respuesta del estudiante:\n${input.studentAnswer}`,
   ]
     .filter(Boolean)
     .join("\n\n");

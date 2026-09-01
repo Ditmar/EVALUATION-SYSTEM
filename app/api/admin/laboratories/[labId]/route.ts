@@ -1,0 +1,101 @@
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import type { LaboratoryStatus } from "@prisma/client";
+import { prisma } from "@/lib/db";
+import { requireAdminSession } from "@/lib/auth/require-admin";
+import { parseLaboratory } from "@/lib/laboratory/parse-laboratory";
+
+export async function GET(request: NextRequest, { params }: { params: { labId: string } }) {
+  const auth = await requireAdminSession(request);
+  if ("response" in auth) return auth.response;
+
+  const laboratory = await prisma.laboratory.findFirst({
+    where: { id: params.labId, createdById: auth.session.userId },
+    include: { subject: { select: { id: true, name: true } } },
+  });
+  if (!laboratory) {
+    return NextResponse.json({ error: "Laboratorio no encontrado." }, { status: 404 });
+  }
+
+  const parsed = parseLaboratory(laboratory.markdownSource);
+  if (!parsed.ok) {
+    // Shouldn't happen (validated at creation/update), but the row could have
+    // been edited out-of-band — surface it instead of crashing the page.
+    return NextResponse.json({ laboratory, parseErrors: parsed.errors });
+  }
+
+  return NextResponse.json({ laboratory, definition: parsed.laboratory, warnings: parsed.warnings });
+}
+
+const UpdateSchema = z.union([
+  z.object({ markdownSource: z.string().min(1) }),
+  z.object({ status: z.enum(["draft", "published", "archived"]) }),
+]);
+
+export async function PATCH(request: NextRequest, { params }: { params: { labId: string } }) {
+  const auth = await requireAdminSession(request);
+  if ("response" in auth) return auth.response;
+
+  const body = await request.json().catch(() => null);
+  const parsedBody = UpdateSchema.safeParse(body);
+  if (!parsedBody.success) {
+    return NextResponse.json({ error: "Datos inválidos." }, { status: 400 });
+  }
+
+  const existing = await prisma.laboratory.findFirst({
+    where: { id: params.labId, createdById: auth.session.userId },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "Laboratorio no encontrado." }, { status: 404 });
+  }
+
+  if ("status" in parsedBody.data) {
+    const laboratory = await prisma.laboratory.update({
+      where: { id: existing.id },
+      data: { status: parsedBody.data.status.toUpperCase() as LaboratoryStatus },
+    });
+    return NextResponse.json({ laboratory });
+  }
+
+  const parsed = parseLaboratory(parsedBody.data.markdownSource);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: "El Markdown del laboratorio no es válido.", issues: parsed.errors }, { status: 400 });
+  }
+
+  if (parsed.laboratory.metadata.id !== existing.slug) {
+    return NextResponse.json(
+      { error: `El "id" del frontmatter no puede cambiar ("${existing.slug}" → "${parsed.laboratory.metadata.id}"). Crea un nuevo laboratorio si necesitas otro id.` },
+      { status: 400 }
+    );
+  }
+
+  const totalPoints = parsed.laboratory.questions.reduce((sum, q) => sum + q.points, 0);
+
+  const laboratory = await prisma.laboratory.update({
+    where: { id: existing.id },
+    data: {
+      markdownSource: parsedBody.data.markdownSource,
+      title: parsed.laboratory.metadata.title,
+      version: existing.version + 1,
+      totalPoints,
+      durationMinutes: parsed.laboratory.metadata.duration,
+    },
+  });
+
+  return NextResponse.json({ laboratory, warnings: parsed.warnings });
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: { labId: string } }) {
+  const auth = await requireAdminSession(request);
+  if ("response" in auth) return auth.response;
+
+  const existing = await prisma.laboratory.findFirst({
+    where: { id: params.labId, createdById: auth.session.userId },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "Laboratorio no encontrado." }, { status: 404 });
+  }
+
+  await prisma.laboratory.delete({ where: { id: existing.id } });
+  return NextResponse.json({ ok: true });
+}

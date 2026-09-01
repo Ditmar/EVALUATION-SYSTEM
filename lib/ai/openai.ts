@@ -1,7 +1,13 @@
 import https from "node:https";
 import OpenAI from "openai";
-import type { AiProvider, CodeEvaluationInput, CodeEvaluationResult } from "./provider";
-import { buildEvaluationPrompt, clampScore, extractJsonPayload } from "./prompt";
+import type {
+  AiProvider,
+  CodeEvaluationInput,
+  CodeEvaluationResult,
+  TextEvaluationInput,
+  TextEvaluationResult,
+} from "./provider";
+import { buildEvaluationPrompt, buildTextEvaluationPrompt, clampScore, extractJsonPayload } from "./prompt";
 
 const MODEL = process.env.AI_MODEL || "gpt-4o-mini";
 
@@ -11,28 +17,48 @@ const MODEL = process.env.AI_MODEL || "gpt-4o-mini";
 // Sin keep-alive cada llamada abre una conexión nueva, eliminando ese caso.
 const httpAgent = new https.Agent({ keepAlive: false });
 
+function getClient(): OpenAI {
+  const apiKey = process.env.AI_API_KEY;
+  if (!apiKey) {
+    throw new Error("AI_API_KEY no está configurado en el entorno.");
+  }
+  return new OpenAI({ apiKey, httpAgent });
+}
+
+async function chatJson(client: OpenAI, prompt: string): Promise<{ text: string; response: OpenAI.Chat.Completions.ChatCompletion }> {
+  const response = await client.chat.completions.create({
+    model: MODEL,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: "Responde únicamente con un objeto JSON válido, sin texto adicional." },
+      { role: "user", content: prompt },
+    ],
+  });
+
+  const text = response.choices[0]?.message?.content;
+  if (!text) {
+    throw new Error("La evaluación con IA no devolvió contenido de texto.");
+  }
+  return { text, response };
+}
+
 export class OpenAiProvider implements AiProvider {
   async evaluateCodeAnswer(input: CodeEvaluationInput): Promise<CodeEvaluationResult> {
-    const apiKey = process.env.AI_API_KEY;
-    if (!apiKey) {
-      throw new Error("AI_API_KEY no está configurado en el entorno.");
-    }
-    const client = new OpenAI({ apiKey, httpAgent });
+    const client = getClient();
+    const { text, response } = await chatJson(client, buildEvaluationPrompt(input));
+    const parsed = JSON.parse(extractJsonPayload(text)) as { score: number; feedback: string };
 
-    const response = await client.chat.completions.create({
+    return {
+      suggestedScore: clampScore(parsed.score, input.maxPoints),
+      feedback: String(parsed.feedback ?? ""),
+      raw: response,
       model: MODEL,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: "Responde únicamente con un objeto JSON válido, sin texto adicional." },
-        { role: "user", content: buildEvaluationPrompt(input) },
-      ],
-    });
+    };
+  }
 
-    const text = response.choices[0]?.message?.content;
-    if (!text) {
-      throw new Error("La evaluación con IA no devolvió contenido de texto.");
-    }
-
+  async evaluateTextAnswer(input: TextEvaluationInput): Promise<TextEvaluationResult> {
+    const client = getClient();
+    const { text, response } = await chatJson(client, buildTextEvaluationPrompt(input));
     const parsed = JSON.parse(extractJsonPayload(text)) as { score: number; feedback: string };
 
     return {
