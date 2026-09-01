@@ -4,10 +4,9 @@ import { prisma } from "@/lib/db";
 import { requireStudentSession } from "@/lib/auth/require-student";
 import { parseLaboratory } from "@/lib/laboratory/parse-laboratory";
 import { toStudentLaboratory } from "@/lib/laboratory/strip-answer-key";
-import { evaluate } from "@/lib/laboratory/evaluation/engine";
-import { computeTotalScore } from "@/lib/laboratory/submission";
+import { finalizeSubmission } from "@/lib/laboratory/submission";
 import { getLatestGithubAttemptsBySubmission } from "@/lib/laboratory/github-attempts";
-import type { AnswersMap, GradingMap } from "@/lib/laboratory/types";
+import type { AnswersMap } from "@/lib/laboratory/types";
 
 async function requireEnrolledPublishedLab(labId: string, studentId: string) {
   const laboratory = await prisma.laboratory.findFirst({ where: { id: labId, status: "PUBLISHED" } });
@@ -90,26 +89,13 @@ export async function POST(request: NextRequest, { params }: { params: { labId: 
     return NextResponse.json({ error: "No se pudo interpretar el laboratorio." }, { status: 500 });
   }
 
-  const answers = (submission.answers as AnswersMap | null) ?? {};
-  const grading: GradingMap = {};
-  for (const question of parsed.laboratory.questions) {
-    const result = evaluate(question, answers[question.id]);
-    grading[question.id] = {
-      evaluator: result.evaluator,
-      status: result.status,
-      autoScore: result.evaluator === "automatic" ? result.score : undefined,
-      finalScore: result.score,
-      feedback: result.feedback,
-    };
-  }
-
-  const totalScore = computeTotalScore(grading);
-  const allAutoGraded = parsed.laboratory.questions.every((q) => grading[q.id].status !== "pending_review");
+  const answers = submission.answers as AnswersMap | null;
+  const { grading, totalScore, status } = finalizeSubmission(parsed.laboratory, answers);
 
   const updated = await prisma.laboratorySubmission.update({
     where: { id: submission.id },
     data: {
-      status: allAutoGraded ? "GRADED" : "SUBMITTED",
+      status,
       grading: grading as unknown as Prisma.InputJsonValue,
       totalScore,
       submittedAt: new Date(),

@@ -30,7 +30,7 @@ const STATUS_TONE: Record<Submission["status"], "gray" | "yellow" | "green"> = {
 
 export function LaboratorySubmissionsTable({ laboratoryId }: { laboratoryId: string }) {
   const [submissions, setSubmissions] = useState<Submission[] | null>(null);
-  const [reopening, setReopening] = useState<Record<string, boolean>>({});
+  const [pending, setPending] = useState<Record<string, boolean>>({});
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -39,21 +39,27 @@ export function LaboratorySubmissionsTable({ laboratoryId }: { laboratoryId: str
       .then((data) => setSubmissions(data.submissions ?? []));
   }, [laboratoryId]);
 
-  async function handleReopen(submissionId: string) {
-    setReopening((prev) => ({ ...prev, [submissionId]: true }));
+  async function handleAction(submissionId: string, action: "reopen" | "close") {
+    setPending((prev) => ({ ...prev, [submissionId]: true }));
     try {
-      const res = await fetch(`/api/admin/laboratories/${laboratoryId}/submissions/${submissionId}/reopen`, {
+      const res = await fetch(`/api/admin/laboratories/${laboratoryId}/submissions/${submissionId}/${action}`, {
         method: "POST",
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        showToast(data.error ?? "No se pudo reaperturar la entrega.", "error");
+        showToast(
+          data.error ?? (action === "reopen" ? "No se pudo reaperturar la entrega." : "No se pudo cerrar la entrega."),
+          "error"
+        );
         return;
       }
       setSubmissions((prev) => prev?.map((s) => (s.id === submissionId ? { ...s, ...data.submission } : s)) ?? prev);
-      showToast("Entrega reaperturada: el estudiante ya puede volver a enviarla.", "success");
+      showToast(
+        action === "reopen" ? "Entrega reaperturada: el estudiante ya puede volver a enviarla." : "Entrega cerrada.",
+        "success"
+      );
     } finally {
-      setReopening((prev) => ({ ...prev, [submissionId]: false }));
+      setPending((prev) => ({ ...prev, [submissionId]: false }));
     }
   }
 
@@ -87,11 +93,23 @@ export function LaboratorySubmissionsTable({ laboratoryId }: { laboratoryId: str
                 variant="secondary"
                 onClick={(e) => {
                   e.preventDefault();
-                  handleReopen(s.id);
+                  handleAction(s.id, "reopen");
                 }}
-                disabled={reopening[s.id]}
+                disabled={pending[s.id]}
               >
-                {reopening[s.id] ? "Reaperturando..." : "Reaperturar"}
+                {pending[s.id] ? "Reaperturando..." : "Reaperturar"}
+              </Button>
+            )}
+            {s.status === "IN_PROGRESS" && (
+              <Button
+                variant="secondary"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleAction(s.id, "close");
+                }}
+                disabled={pending[s.id]}
+              >
+                {pending[s.id] ? "Cerrando..." : "Cerrar"}
               </Button>
             )}
           </div>
