@@ -15,8 +15,16 @@ export interface AiEvaluationRecord {
   suggestedScore: number;
   feedback: string;
   evidence?: AiEvaluationEvidence[] | null;
+  /** Model's self-reported 0..1 likelihood this answer was AI-generated — already factored into `suggestedScore`; a soft signal, not a verdict. */
+  aiLikelihood?: number | null;
   model: string;
   createdAt: string;
+}
+
+function aiLikelihoodBadge(aiLikelihood: number): { tone: "red" | "yellow" | "gray"; label: string } {
+  if (aiLikelihood >= 0.7) return { tone: "red", label: `Posible uso de IA: ${Math.round(aiLikelihood * 100)}%` };
+  if (aiLikelihood >= 0.4) return { tone: "yellow", label: `Uso de IA incierto: ${Math.round(aiLikelihood * 100)}%` };
+  return { tone: "gray", label: `Uso de IA improbable: ${Math.round(aiLikelihood * 100)}%` };
 }
 
 interface Props {
@@ -68,10 +76,13 @@ export function LaboratoryAiSuggestion({ labId, submissionId, questionId, maxPoi
         <ul className="mt-3 space-y-2">
           {aiEvaluations.map((ev) => (
             <li key={ev.id} className="rounded bg-white p-2 text-sm">
-              <div className="mb-1 flex items-center gap-2">
+              <div className="mb-1 flex flex-wrap items-center gap-2">
                 <Badge tone="blue">
                   Sugerido: {ev.suggestedScore}/{maxPoints}
                 </Badge>
+                {typeof ev.aiLikelihood === "number" && (
+                  <Badge tone={aiLikelihoodBadge(ev.aiLikelihood).tone}>{aiLikelihoodBadge(ev.aiLikelihood).label}</Badge>
+                )}
                 <button type="button" className="text-xs text-brand-600 hover:underline" onClick={() => onUseScore(ev.suggestedScore)}>
                   Usar este puntaje
                 </button>

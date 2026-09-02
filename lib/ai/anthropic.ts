@@ -6,7 +6,7 @@ import type {
   TextEvaluationInput,
   TextEvaluationResult,
 } from "./provider";
-import { buildEvaluationPrompt, buildTextEvaluationPrompt, clampScore, extractJsonPayload, parseConfidence, parseEvidence } from "./prompt";
+import { buildEvaluationPrompt, buildTextEvaluationPrompt, clampScore, extractJsonPayload, parseAiLikelihood, parseConfidence, parseEvidence } from "./prompt";
 
 const MODEL = process.env.AI_MODEL || "claude-sonnet-5";
 
@@ -63,6 +63,7 @@ export class AnthropicProvider implements AiProvider {
       feedback: string;
       evidence?: unknown;
       confidence?: unknown;
+      aiLikelihood?: unknown;
     };
 
     return {
@@ -70,6 +71,7 @@ export class AnthropicProvider implements AiProvider {
       feedback: String(parsed.feedback ?? ""),
       evidence: parseEvidence(parsed.evidence),
       confidence: parseConfidence(parsed.confidence),
+      aiLikelihood: parseAiLikelihood(parsed.aiLikelihood),
       raw: response,
       model: MODEL,
     };

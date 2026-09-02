@@ -408,6 +408,8 @@ model LaboratoryAiEvaluation {
   feedback       String               @db.Text
   /// [{ file, line?, reason }] — structured evidence for github-pr / rubric-graded reviews; null for older rows.
   evidence       Json?
+  /// Model's self-reported 0..1 likelihood the answer was AI-generated rather than student-written; null for older rows or when unavailable.
+  aiLikelihood   Float?
   rawResponse    Json
   model          String
   createdAt      DateTime             @default(now())

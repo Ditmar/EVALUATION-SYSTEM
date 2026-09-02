@@ -34,6 +34,15 @@ export interface TextEvaluationResult {
   evidence?: EvidenceItem[];
   /** Self-reported by the model; neither adapter computes a calibrated value, so treat this as a soft signal only. */
   confidence?: number;
+  /**
+   * Self-reported 0..1 likelihood the model believes this answer was
+   * AI-generated rather than written by the student — already factored into
+   * `suggestedScore` (see `buildTextEvaluationPrompt`), but surfaced
+   * separately so the teacher can see *why* a score was reduced (or wasn't)
+   * instead of trusting the number blindly. Like `confidence`, this is a
+   * soft signal from the model, not a calibrated detector.
+   */
+  aiLikelihood?: number;
   raw: unknown;
   model: string;
 }

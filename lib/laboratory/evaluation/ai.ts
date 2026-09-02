@@ -8,6 +8,7 @@ export interface AiEvaluationSuggestion {
   feedback: string;
   evidence?: EvidenceItem[];
   confidence?: number;
+  aiLikelihood?: number;
   raw: unknown;
   model: string;
 }
@@ -43,6 +44,7 @@ export async function evaluateWithAi(
     feedback: result.feedback,
     evidence: result.evidence,
     confidence: result.confidence,
+    aiLikelihood: result.aiLikelihood,
     raw: result.raw,
     model: result.model,
   };

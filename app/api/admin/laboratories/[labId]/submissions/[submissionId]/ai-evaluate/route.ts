@@ -96,6 +96,7 @@ export async function POST(request: NextRequest, { params }: { params: { labId: 
         suggestedScore: suggestion.score,
         feedback: suggestion.feedback,
         evidence: suggestion.evidence ? JSON.parse(JSON.stringify(suggestion.evidence)) : undefined,
+        aiLikelihood: suggestion.aiLikelihood,
         rawResponse: JSON.parse(JSON.stringify(suggestion.raw)),
         model: suggestion.model,
       },

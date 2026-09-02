@@ -31,12 +31,14 @@ export function buildEvaluationPrompt(input: CodeEvaluationInput): string {
 export function buildTextEvaluationPrompt(input: TextEvaluationInput): string {
   return [
     `Eres un asistente que ayuda a un docente a calificar la respuesta escrita de un estudiante en un laboratorio.`,
-    `Responde ÚNICAMENTE con un objeto JSON de la forma exacta {"score": number, "feedback": string, "evidence": [{"file": string, "line": number, "reason": string}], "confidence": number}.`,
+    `Responde ÚNICAMENTE con un objeto JSON de la forma exacta {"score": number, "feedback": string, "evidence": [{"file": string, "line": number, "reason": string}], "confidence": number, "aiLikelihood": number}.`,
     `El score debe estar entre 0 y ${input.maxPoints}.`,
     `El feedback debe ser breve (máximo 3 líneas), objetivo y en español.`,
     `"evidence" es opcional: si la respuesta del estudiante incluye cambios de código o archivos identificables, cita los archivos/líneas concretos que respaldan tu evaluación; si no aplica (una respuesta de texto simple), responde "evidence": [].`,
     `Si la respuesta incluye un diff de código, evalúa principalmente los cambios introducidos por el estudiante — no le atribuyas mérito a código que ya existía antes de sus cambios.`,
     `"confidence" es un número entre 0 y 1 que refleja tu propia certeza sobre el puntaje asignado.`,
+    `"aiLikelihood" es un número entre 0 y 1 que refleja qué tan probable te parece que esta respuesta haya sido generada por una IA (p. ej. un chatbot) en lugar de redactada por el propio estudiante. Básate en señales como: lenguaje genérico o "de manual" que no hace referencia concreta a su propio código/repositorio; tono uniformemente formal/pulido inconsistente con el resto de sus respuestas; estructura tipo chatbot (encabezados, listas perfectas) para una simple justificación breve; ausencia de razonamiento específico ligado a las decisiones reales que tomó. Sé conservador: usa valores altos (>0.7) solo cuando la evidencia sea clara, no por el mero hecho de que la redacción sea buena.`,
+    `Usa "aiLikelihood" para ajustar el "score" dentro del rango permitido: si crees que la respuesta fue probablemente generada por IA, reduce el score de forma proporcional a tu certeza y explica brevemente por qué en el feedback (sin inventar una regla numérica exacta, usa tu criterio). Si en cambio la respuesta se lee como genuinamente humana, coherente y con razonamiento propio ligado a su trabajo concreto, no apliques ninguna penalización y otorga el puntaje completo que merezca según la rúbrica — el score nunca debe superar ${input.maxPoints} en ningún caso.`,
     ``,
     `Pregunta: ${input.question}`,
     input.rubric ? `Rúbrica de calificación:\n${input.rubric}` : "",
@@ -60,10 +62,20 @@ export function parseEvidence(value: unknown): EvidenceItem[] | undefined {
   return items.length > 0 ? items : undefined;
 }
 
-/** Safely coerces the parsed JSON's self-reported `confidence` field into a 0..1 number, or `undefined` if absent/invalid. */
-export function parseConfidence(value: unknown): number | undefined {
+/** Clamps any parsed JSON field that's supposed to be a 0..1 number (self-reported by the model), or `undefined` if absent/invalid. */
+function parseUnitInterval(value: unknown): number | undefined {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Math.max(0, Math.min(1, parsed)) : undefined;
+}
+
+/** Safely coerces the parsed JSON's self-reported `confidence` field into a 0..1 number, or `undefined` if absent/invalid. */
+export function parseConfidence(value: unknown): number | undefined {
+  return parseUnitInterval(value);
+}
+
+/** Safely coerces the parsed JSON's self-reported `aiLikelihood` field into a 0..1 number, or `undefined` if absent/invalid. */
+export function parseAiLikelihood(value: unknown): number | undefined {
+  return parseUnitInterval(value);
 }
 
 export function extractJsonPayload(text: string): string {
