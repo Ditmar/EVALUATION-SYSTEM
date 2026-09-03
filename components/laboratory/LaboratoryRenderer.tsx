@@ -2,6 +2,7 @@
 
 import type { AnswerValue, LaboratoryNode, QuestionDefinition, RepositoryResource } from "@/lib/laboratory/types";
 import { CodeEditor } from "@/components/CodeEditor";
+import { MathBlock, MathInline } from "@/components/laboratory/MathNode";
 import { answerRegistry } from "./answers/registry";
 import type { GithubAttemptSummary } from "./answers/types";
 
@@ -167,6 +168,10 @@ function renderNode(node: LaboratoryNode, ctx: RenderContext, key: number): Reac
       );
     case "break":
       return <br key={key} />;
+    case "math":
+      return <MathBlock key={key} value={node.value} />;
+    case "inlineMath":
+      return <MathInline key={key} value={node.value} />;
     case "labAnswer":
       return renderAnswer(node.questionId, ctx, key);
     default:

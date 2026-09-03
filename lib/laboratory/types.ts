@@ -171,7 +171,9 @@ export type LaboratoryNode =
   | { type: "blockquote"; children: LaboratoryNode[] }
   | { type: "link"; url: string; children: LaboratoryNode[] }
   | { type: "break" }
-  | { type: "labAnswer"; questionId: string };
+  | { type: "labAnswer"; questionId: string }
+  | { type: "math"; value: string }
+  | { type: "inlineMath"; value: string };
 
 export interface LaboratoryDefinition {
   metadata: LaboratoryMetadata;

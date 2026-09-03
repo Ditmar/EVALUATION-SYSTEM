@@ -73,6 +73,10 @@ export function convertNode(node: MdastLikeNode, ctx: MdastConvertContext): Labo
       return { type: "link", url: node.url ?? "", children: convertChildren(node.children, ctx) };
     case "break":
       return { type: "break" };
+    case "math":
+      return { type: "math", value: node.value ?? "" };
+    case "inlineMath":
+      return { type: "inlineMath", value: node.value ?? "" };
     default:
       ctx.errors.push({ message: `Elemento Markdown no soportado en un laboratorio: "${node.type}".` });
       return null;

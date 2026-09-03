@@ -266,4 +266,47 @@ describe("parseLaboratory", () => {
     expect(q.correct).toBe("Dijkstra");
     expect(q.evaluator).toBe("automatic");
   });
+
+  it("parses $$...$$ / $...$ math into dedicated math/inlineMath nodes", () => {
+    const result = parseLaboratory(fixture(`Fórmula en línea: $x^2$.\n\n$$\n\\frac{dx}{dt}\n$$\n`));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const paragraph = result.laboratory.content.find((n) => n.type === "paragraph");
+    expect(paragraph).toBeDefined();
+    if (paragraph?.type !== "paragraph") return;
+    const inline = paragraph.children.find((n): n is Extract<LaboratoryNode, { type: "inlineMath" }> => n.type === "inlineMath");
+    expect(inline?.value).toBe("x^2");
+
+    const block = result.laboratory.content.find((n): n is Extract<LaboratoryNode, { type: "math" }> => n.type === "math");
+    expect(block?.value.trim()).toBe("\\frac{dx}{dt}");
+  });
+
+  it("also accepts LaTeX-style \\(...\\) / \\[...\\] delimiters, translating them to the same math nodes", () => {
+    const result = parseLaboratory(fixture(`Velocidad \\(x^2\\) de cambio.\n\n\\[\n\\frac{dx}{dt}\n\\]\n`));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const paragraph = result.laboratory.content.find((n) => n.type === "paragraph");
+    if (paragraph?.type !== "paragraph") throw new Error("expected a paragraph");
+    const inline = paragraph.children.find((n): n is Extract<LaboratoryNode, { type: "inlineMath" }> => n.type === "inlineMath");
+    expect(inline?.value).toBe("x^2");
+
+    const block = result.laboratory.content.find((n): n is Extract<LaboratoryNode, { type: "math" }> => n.type === "math");
+    expect(block?.value.trim()).toBe("\\frac{dx}{dt}");
+  });
+
+  it("does not translate \\(...\\) / \\[...\\] found inside a fenced code block", () => {
+    const result = parseLaboratory(fixture("Ejemplo de sintaxis LaTeX:\n\n```\n\\[ \\frac{dx}{dt} \\]\n```\n"));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const hasMathNode = result.laboratory.content.some((n) => n.type === "math" || n.type === "inlineMath");
+    expect(hasMathNode).toBe(false);
+    const code = result.laboratory.content.find((n): n is Extract<LaboratoryNode, { type: "code" }> => n.type === "code");
+    expect(code?.value.trim()).toBe("\\[ \\frac{dx}{dt} \\]");
+  });
 });

@@ -2,6 +2,8 @@ import matter from "gray-matter";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import { convertLatexDelimiters } from "./convert-latex-delimiters";
 import { extractRubrics } from "./extract-rubrics";
 import { extractRepositories } from "./extract-repositories";
 import { parsePlaceholder, parsePlaceholderAttributes } from "./parse-placeholder";
@@ -172,7 +174,11 @@ export function parseLaboratory(markdownSource: string): LaboratoryParseResult {
   const { source: body, repositories, errors: repositoryErrors } = extractRepositories(afterRubrics);
   errors.push(...repositoryErrors);
 
-  const tree = unified().use(remarkParse).use(remarkGfm).parse(body) as unknown as { children: MdastLikeNode[] };
+  const tree = unified()
+    .use(remarkParse)
+    .use(remarkGfm)
+    .use(remarkMath)
+    .parse(convertLatexDelimiters(body)) as unknown as { children: MdastLikeNode[] };
 
   const ctx: WalkContext = { errors: [], rawPlaceholders: new Map(), order: [], duplicateIds: [] };
   const contentNodes = convertChildren(tree.children, { errors: ctx.errors, convertText: (value) => splitTextNode(value, ctx) });
