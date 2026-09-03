@@ -30,6 +30,21 @@ export async function evaluateWithAi(
   rubric: string | null,
   studentAnswer: string
 ): Promise<AiEvaluationSuggestion> {
+  // Score a blank answer as 0 without ever asking the model — an empty
+  // "Respuesta del estudiante:" section in the prompt gives the LLM nothing
+  // to ground a score in, and models don't reliably default to 0 on their
+  // own for it (observed: an empty answer sometimes still got a generous
+  // score). Deciding this in code is the only way to guarantee it.
+  if (!studentAnswer.trim()) {
+    return {
+      score: 0,
+      maxScore: question.points,
+      feedback: "El estudiante no envió ninguna respuesta.",
+      raw: { skipped: "empty-answer" },
+      model: "n/a",
+    };
+  }
+
   const provider = getAiProvider();
   const result = await provider.evaluateTextAnswer({
     question: questionText,

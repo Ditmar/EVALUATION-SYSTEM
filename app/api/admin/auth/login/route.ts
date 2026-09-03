@@ -29,6 +29,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Correo o contraseña incorrectos." }, { status: 401 });
   }
 
+  if (!user.active) {
+    return NextResponse.json({ error: "Esta cuenta está desactivada." }, { status: 403 });
+  }
+
   const token = await signAdminSession({ userId: user.id, email: user.email });
   const response = NextResponse.json({ ok: true });
   setAdminSessionCookie(response, token);

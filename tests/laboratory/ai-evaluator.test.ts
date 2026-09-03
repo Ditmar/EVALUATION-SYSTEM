@@ -54,4 +54,27 @@ describe("evaluateWithAi", () => {
     ]);
     expect(suggestion.confidence).toBe(0.88);
   });
+
+  it("scores a blank answer as 0 without ever calling the AI provider", async () => {
+    evaluateTextAnswer.mockClear();
+    const { evaluateWithAi } = await import("@/lib/laboratory/evaluation/ai");
+
+    const question: TextareaQuestion = { id: "q1", type: "textarea", points: 10, required: true, evaluator: "ai" };
+    const suggestion = await evaluateWithAi(question, "¿Por qué Dijkstra encuentra el camino mínimo?", null, "");
+
+    expect(evaluateTextAnswer).not.toHaveBeenCalled();
+    expect(suggestion.score).toBe(0);
+    expect(suggestion.maxScore).toBe(10);
+  });
+
+  it("also treats a whitespace-only answer as blank", async () => {
+    evaluateTextAnswer.mockClear();
+    const { evaluateWithAi } = await import("@/lib/laboratory/evaluation/ai");
+
+    const question: TextareaQuestion = { id: "q1", type: "textarea", points: 10, required: true, evaluator: "ai" };
+    const suggestion = await evaluateWithAi(question, "¿Por qué Dijkstra encuentra el camino mínimo?", null, "   \n  ");
+
+    expect(evaluateTextAnswer).not.toHaveBeenCalled();
+    expect(suggestion.score).toBe(0);
+  });
 });
