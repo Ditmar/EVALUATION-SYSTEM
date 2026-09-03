@@ -1,19 +1,44 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ExamIcon, LabIcon, StudentsIcon, SubjectIcon } from "@/components/ui/icons";
+import { AssistantIcon, ExamIcon, LabIcon, StudentsIcon, SubjectIcon } from "@/components/ui/icons";
 import { LogoutButton } from "@/components/admin/LogoutButton";
 
-const NAV_ITEMS = [
+type Role = "TEACHER" | "ASSISTANT";
+
+const TEACHER_NAV_ITEMS = [
   { href: "/admin", label: "Exámenes", icon: ExamIcon, match: (p: string) => p === "/admin" || p.startsWith("/admin/exams") },
   { href: "/admin/laboratories", label: "Laboratorios", icon: LabIcon, match: (p: string) => p.startsWith("/admin/laboratories") },
   { href: "/admin/subjects", label: "Materias", icon: SubjectIcon, match: (p: string) => p.startsWith("/admin/subjects") },
   { href: "/admin/students", label: "Estudiantes", icon: StudentsIcon, match: (p: string) => p.startsWith("/admin/students") },
+  { href: "/admin/assistants", label: "Ayudantes", icon: AssistantIcon, match: (p: string) => p.startsWith("/admin/assistants") },
+];
+
+// An ASSISTANT only ever reviews/grades laboratory submissions — everything
+// else (Exámenes, Materias, Estudiantes, Ayudantes) is TEACHER-only, and the
+// backend already enforces that; this is just so the menu doesn't dangle
+// links to pages the assistant can't do anything on.
+const ASSISTANT_NAV_ITEMS = [
+  { href: "/admin/laboratories", label: "Laboratorios", icon: LabIcon, match: (p: string) => p.startsWith("/admin/laboratories") },
 ];
 
 export function AdminSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const [role, setRole] = useState<Role | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/auth/me")
+      .then((res) => res.json())
+      .then((data) => setRole(data.role ?? null))
+      .catch(() => setRole(null));
+  }, []);
+
+  // Defaults to the smaller ASSISTANT menu while `role` is still loading (or
+  // failed to load, e.g. a deactivated account's session) — briefly hiding
+  // TEACHER-only items until confirmed is preferable to briefly flashing them.
+  const navItems = role === "TEACHER" ? TEACHER_NAV_ITEMS : ASSISTANT_NAV_ITEMS;
 
   return (
     <div className="flex h-full flex-col bg-ink-900">
@@ -25,7 +50,7 @@ export function AdminSidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <nav className="scrollbar-thin flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const active = item.match(pathname);
           return (
             <Link
@@ -49,7 +74,7 @@ export function AdminSidebar({ onNavigate }: { onNavigate?: () => void }) {
             D
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-white">Docente</p>
+            <p className="truncate text-sm font-medium text-white">{role === "ASSISTANT" ? "Ayudante" : "Docente"}</p>
             <p className="truncate text-xs text-slate-500">Panel administrativo</p>
           </div>
         </div>

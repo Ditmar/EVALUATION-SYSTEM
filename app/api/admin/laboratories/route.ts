@@ -10,8 +10,25 @@ export async function GET(request: NextRequest) {
   const auth = await requireAdminSession(request);
   if ("response" in auth) return auth.response;
 
+  // TEACHER: everything they own (unchanged). ASSISTANT: only laboratories
+  // in a subject they've been granted — never their own `createdById` (an
+  // assistant never owns a laboratory).
+  const where =
+    auth.session.role === "ASSISTANT"
+      ? {
+          subjectId: {
+            in: (
+              await prisma.subjectAssistantAccess.findMany({
+                where: { assistantId: auth.session.userId },
+                select: { subjectId: true },
+              })
+            ).map((g) => g.subjectId),
+          },
+        }
+      : { createdById: auth.session.userId };
+
   const laboratories = await prisma.laboratory.findMany({
-    where: { createdById: auth.session.userId },
+    where,
     orderBy: { createdAt: "desc" },
     include: {
       subject: { select: { id: true, name: true } },
@@ -53,6 +70,9 @@ const CreateLaboratorySchema = z.object({
 export async function POST(request: NextRequest) {
   const auth = await requireAdminSession(request);
   if ("response" in auth) return auth.response;
+  if (auth.session.role === "ASSISTANT") {
+    return NextResponse.json({ error: "No tienes permiso para crear laboratorios." }, { status: 403 });
+  }
 
   const body = await request.json().catch(() => null);
   const parsedBody = CreateLaboratorySchema.safeParse(body);

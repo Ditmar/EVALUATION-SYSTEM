@@ -9,6 +9,7 @@ datasource db {
 
 enum Role {
   TEACHER
+  ASSISTANT
 }
 
 enum QuestionType {
@@ -68,15 +69,47 @@ model User {
   passwordHash String
   name         String?
   role         Role     @default(TEACHER)
+  // Instant revocation: checked fresh on every admin request (never cached in
+  // the session JWT) so deactivating an account takes effect immediately
+  // instead of waiting out the 8h session — see `requireAdminSession`.
+  active       Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // Who created this account — null for "root" teacher accounts (created via
+  // the seed script); set for ASSISTANT accounts a teacher creates so they
+  // can only be managed by the teacher who created them.
+  createdById  String?
+  createdBy    User?   @relation("UserCreatedBy", fields: [createdById], references: [id])
+  createdUsers User[]  @relation("UserCreatedBy")
+
   exams         Exam[]
-  gradedAnswers Answer[]     @relation("GradedBy")
+  gradedAnswers Answer[]                 @relation("GradedBy")
   subjects      Subject[]
   laboratories  Laboratory[]
+  // Subjects an ASSISTANT account has been granted review access to — empty/unused for TEACHER accounts.
+  subjectAccess SubjectAssistantAccess[] @relation("AssistantAccess")
 
   @@map("users")
+}
+
+// Grants a `role: ASSISTANT` account laboratory-review access to one
+// `Subject` — the only thing an assistant can do (see
+// `requireLaboratoryAccess` in `lib/auth/require-admin.ts`) is view/grade
+// `LaboratorySubmission`s belonging to a `Laboratory` in a subject they have
+// a row here for. Never grants access to Subjects/Students/Exams themselves,
+// or to creating/editing/publishing Laboratories.
+model SubjectAssistantAccess {
+  id          String   @id @default(cuid())
+  subjectId   String
+  subject     Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  assistantId String
+  assistant   User     @relation("AssistantAccess", fields: [assistantId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([subjectId, assistantId])
+  @@index([assistantId])
+  @@map("subject_assistant_access")
 }
 
 model Subject {
@@ -87,9 +120,10 @@ model Subject {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  exams        Exam[]
-  enrollments  Enrollment[]
-  laboratories Laboratory[]
+  exams           Exam[]
+  enrollments     Enrollment[]
+  laboratories    Laboratory[]
+  assistantAccess SubjectAssistantAccess[]
 
   @@unique([createdById, name])
   @@index([createdById])

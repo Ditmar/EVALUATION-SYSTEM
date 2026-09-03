@@ -57,6 +57,16 @@ export function StudentsIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function AssistantIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="8" r="3.25" />
+      <path d="M5.5 20c.6-3.6 3-5.5 6.5-5.5s5.9 1.9 6.5 5.5" />
+      <path d="M9 8.5 11 10.5 15.5 6" />
+    </Icon>
+  );
+}
+
 export function LogoutIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

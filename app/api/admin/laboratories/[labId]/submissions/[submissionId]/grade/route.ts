@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { requireAdminSession } from "@/lib/auth/require-admin";
+import { requireLaboratoryAccess } from "@/lib/auth/require-admin";
 import { parseLaboratory } from "@/lib/laboratory/parse-laboratory";
 import { computeTotalScore } from "@/lib/laboratory/submission";
 import type { GradingMap } from "@/lib/laboratory/types";
@@ -14,20 +14,14 @@ const GradeSchema = z.object({
 });
 
 export async function PATCH(request: NextRequest, { params }: { params: { labId: string; submissionId: string } }) {
-  const auth = await requireAdminSession(request);
+  const auth = await requireLaboratoryAccess(request, params.labId);
   if ("response" in auth) return auth.response;
+  const { laboratory } = auth;
 
   const body = await request.json().catch(() => null);
   const parsedBody = GradeSchema.safeParse(body);
   if (!parsedBody.success) {
     return NextResponse.json({ error: "Datos inválidos." }, { status: 400 });
-  }
-
-  const laboratory = await prisma.laboratory.findFirst({
-    where: { id: params.labId, createdById: auth.session.userId },
-  });
-  if (!laboratory) {
-    return NextResponse.json({ error: "Laboratorio no encontrado." }, { status: 404 });
   }
 
   const submission = await prisma.laboratorySubmission.findFirst({

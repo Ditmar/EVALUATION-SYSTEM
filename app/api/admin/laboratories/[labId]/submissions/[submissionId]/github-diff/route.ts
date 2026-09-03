@@ -1,25 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireAdminSession } from "@/lib/auth/require-admin";
+import { requireLaboratoryAccess } from "@/lib/auth/require-admin";
 import { parseLaboratory } from "@/lib/laboratory/parse-laboratory";
 import { getLatestGithubAttempt } from "@/lib/laboratory/github-attempts";
 import { getCompareDiff, parseRepositoryUrl } from "@/lib/github/github-service";
 
 /** Teacher-facing diff viewer data: the latest GitHub attempt for a question, plus the actual file diff between its two frozen SHAs. */
 export async function GET(request: NextRequest, { params }: { params: { labId: string; submissionId: string } }) {
-  const auth = await requireAdminSession(request);
+  const auth = await requireLaboratoryAccess(request, params.labId);
   if ("response" in auth) return auth.response;
+  const { laboratory } = auth;
 
   const questionId = request.nextUrl.searchParams.get("questionId");
   if (!questionId) {
     return NextResponse.json({ error: 'Falta el parámetro "questionId".' }, { status: 400 });
-  }
-
-  const laboratory = await prisma.laboratory.findFirst({
-    where: { id: params.labId, createdById: auth.session.userId },
-  });
-  if (!laboratory) {
-    return NextResponse.json({ error: "Laboratorio no encontrado." }, { status: 404 });
   }
 
   const submission = await prisma.laboratorySubmission.findFirst({

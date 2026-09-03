@@ -2,21 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import type { LaboratoryStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { requireAdminSession } from "@/lib/auth/require-admin";
+import { requireAdminSession, requireLaboratoryAccess } from "@/lib/auth/require-admin";
 import { parseLaboratory } from "@/lib/laboratory/parse-laboratory";
 import { resolveLaboratoryRepositorySnapshots, syncLaboratoryRepositories } from "@/lib/laboratory/repository-sync";
 
+/** Read access: the owning TEACHER, or an ASSISTANT granted this laboratory's subject — see `requireLaboratoryAccess`. */
 export async function GET(request: NextRequest, { params }: { params: { labId: string } }) {
-  const auth = await requireAdminSession(request);
+  const auth = await requireLaboratoryAccess(request, params.labId);
   if ("response" in auth) return auth.response;
+  const { laboratory: lab } = auth;
 
-  const laboratory = await prisma.laboratory.findFirst({
-    where: { id: params.labId, createdById: auth.session.userId },
-    include: { subject: { select: { id: true, name: true } } },
-  });
-  if (!laboratory) {
-    return NextResponse.json({ error: "Laboratorio no encontrado." }, { status: 404 });
-  }
+  const subject = await prisma.subject.findUnique({ where: { id: lab.subjectId }, select: { id: true, name: true } });
+  const laboratory = { ...lab, subject };
 
   const parsed = parseLaboratory(laboratory.markdownSource);
   if (!parsed.ok) {
