@@ -63,6 +63,17 @@ enum LaboratorySubmissionStatus {
   GRADED
 }
 
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CommentAuthorType {
+  STUDENT
+  STAFF
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -89,6 +100,8 @@ model User {
   laboratories  Laboratory[]
   // Subjects an ASSISTANT account has been granted review access to — empty/unused for TEACHER accounts.
   subjectAccess SubjectAssistantAccess[] @relation("AssistantAccess")
+  articles      Article[]
+  articleComments ArticleComment[]
 
   @@map("users")
 }
@@ -144,6 +157,7 @@ model Student {
   refreshTokens         StudentRefreshToken[]
   examAttempts          ExamAttempt[]
   laboratorySubmissions LaboratorySubmission[]
+  articleComments       ArticleComment[]
 
   @@map("students")
 }
@@ -521,4 +535,74 @@ model GitHubSubmissionAttempt {
   @@unique([submissionId, questionId, attemptNumber])
   @@index([submissionId, questionId])
   @@map("github_submission_attempts")
+}
+
+// Blog público (`/home`). Igual que `Laboratory`, `markdownSource` es la
+// fuente de verdad (Article Markdown Specification v0.1, ver
+// lib/blog/article-spec.md) y se re-parsea en cada lectura vía
+// lib/blog/parse-article.ts — nada más en el sistema debería volver a leer
+// Markdown crudo de artículos.
+model Article {
+  id                 String        @id @default(cuid())
+  slug               String        @unique
+  title              String
+  excerpt            String
+  tags               String[]
+  markdownSource     String        @db.Text
+  readingTimeMinutes Int
+  status             ArticleStatus @default(DRAFT)
+  publishedAt        DateTime?
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  claps    ArticleClap[]
+  comments ArticleComment[]
+
+  @@index([authorId])
+  @@index([status, publishedAt])
+  @@map("articles")
+}
+
+// Un "aplauso" anónimo por visitante (identificado por la cookie opaca
+// `blog_clapper`, sin necesidad de cuenta) — como los claps de Medium. El
+// tope de 50 por visitante se aplica en la API (POST .../applause), no aquí.
+model ArticleClap {
+  id        String   @id @default(cuid())
+  articleId String
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  clapperId String
+  count     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([articleId, clapperId])
+  @@index([articleId])
+  @@map("article_claps")
+}
+
+// Solo `Student` o `User` (TEACHER/ASSISTANT) autenticados pueden comentar —
+// ver lib/blog/require-commenter.ts. `authorName` es una foto del nombre al
+// momento de comentar, para que el comentario siga siendo legible aunque el
+// autor cambie de nombre después.
+model ArticleComment {
+  id        String  @id @default(cuid())
+  articleId String
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  content   String  @db.Text
+
+  authorType CommentAuthorType
+  studentId  String?
+  student    Student? @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  authorName String
+
+  createdAt DateTime @default(now())
+
+  @@index([articleId, createdAt])
+  @@map("article_comments")
 }

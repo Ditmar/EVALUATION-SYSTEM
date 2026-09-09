@@ -1,6 +1,8 @@
+import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import type { Laboratory, Role } from "@prisma/client";
-import { getAdminSessionFromRequest } from "@/lib/auth/admin-session";
+import { ADMIN_SESSION_COOKIE } from "@/lib/constants";
+import { getAdminSessionFromRequest, verifyAdminSession } from "@/lib/auth/admin-session";
 import { prisma } from "@/lib/db";
 
 export interface AdminAuthSession {
@@ -37,6 +39,30 @@ export async function requireAdminSession(
   }
 
   return { session: { userId: user.id, email: user.email, role: user.role } };
+}
+
+/**
+ * Server-side check for the initial load of a `/home/*` Server Component
+ * page (reads cookies via `next/headers` instead of a `NextRequest`) —
+ * mirrors `getStudentSessionForPage` in `lib/auth/require-student.ts`. Used
+ * only to decide whether to show the article comment form as a logged-in
+ * TEACHER/ASSISTANT; returns `null` on any missing/expired/deactivated
+ * session rather than redirecting (the blog is public, unlike `/admin/*`).
+ */
+export async function getAdminSessionForPage(): Promise<{ userId: string; email: string; role: Role; name: string | null } | null> {
+  const token = cookies().get(ADMIN_SESSION_COOKIE)?.value;
+  if (!token) return null;
+
+  const tokenSession = await verifyAdminSession(token);
+  if (!tokenSession) return null;
+
+  const user = await prisma.user.findUnique({
+    where: { id: tokenSession.userId },
+    select: { id: true, email: true, role: true, active: true, name: true },
+  });
+  if (!user || !user.active) return null;
+
+  return { userId: user.id, email: user.email, role: user.role, name: user.name };
 }
 
 /**

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AssistantIcon, ExamIcon, LabIcon, StudentsIcon, SubjectIcon } from "@/components/ui/icons";
+import { ArticleIcon, AssistantIcon, ExamIcon, LabIcon, StudentsIcon, SubjectIcon } from "@/components/ui/icons";
 import { LogoutButton } from "@/components/admin/LogoutButton";
 
 type Role = "TEACHER" | "ASSISTANT";
@@ -11,6 +11,7 @@ type Role = "TEACHER" | "ASSISTANT";
 const TEACHER_NAV_ITEMS = [
   { href: "/admin", label: "Exámenes", icon: ExamIcon, match: (p: string) => p === "/admin" || p.startsWith("/admin/exams") },
   { href: "/admin/laboratories", label: "Laboratorios", icon: LabIcon, match: (p: string) => p.startsWith("/admin/laboratories") },
+  { href: "/admin/articles", label: "Artículos", icon: ArticleIcon, match: (p: string) => p.startsWith("/admin/articles") },
   { href: "/admin/subjects", label: "Materias", icon: SubjectIcon, match: (p: string) => p.startsWith("/admin/subjects") },
   { href: "/admin/students", label: "Estudiantes", icon: StudentsIcon, match: (p: string) => p.startsWith("/admin/students") },
   { href: "/admin/assistants", label: "Ayudantes", icon: AssistantIcon, match: (p: string) => p.startsWith("/admin/assistants") },
