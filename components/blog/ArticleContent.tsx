@@ -18,11 +18,11 @@ interface RenderContext {
 }
 
 const HEADING_CLASSES: Record<number, string> = {
-  1: "mt-10 mb-4 text-3xl font-bold text-slate-900",
-  2: "mt-10 mb-4 scroll-mt-24 text-2xl font-bold text-slate-900",
-  3: "mt-8 mb-3 scroll-mt-24 text-xl font-semibold text-slate-900",
-  4: "mt-6 mb-2 text-lg font-semibold text-slate-900",
-  5: "mt-4 mb-2 text-base font-semibold text-slate-900",
+  1: "mt-8 mb-4 text-2xl font-bold text-slate-900 sm:mt-10 sm:text-3xl",
+  2: "mt-8 mb-4 scroll-mt-32 text-xl font-bold text-slate-900 sm:mt-10 sm:text-2xl",
+  3: "mt-6 mb-3 scroll-mt-32 text-lg font-semibold text-slate-900 sm:mt-8 sm:text-xl",
+  4: "mt-5 mb-2 text-base font-semibold text-slate-900 sm:mt-6 sm:text-lg",
+  5: "mt-4 mb-2 text-sm font-semibold text-slate-900 sm:text-base",
   6: "mt-4 mb-2 text-sm font-semibold text-slate-700",
 };
 
@@ -35,7 +35,9 @@ const HEADING_CLASSES: Record<number, string> = {
 export function ArticleContent({ content, headings }: ArticleContentProps) {
   const ctx: RenderContext = { headings, headingCursor: { index: 0 } };
   return (
-    <div className="article-prose max-w-none text-[1.0625rem] leading-relaxed text-slate-800">{renderNodes(content, ctx)}</div>
+    <div className="article-prose max-w-none text-lg leading-7 text-slate-800 sm:text-xl sm:leading-8">
+      {renderNodes(content, ctx)}
+    </div>
   );
 }
 
@@ -70,7 +72,7 @@ function renderNode(node: ArticleNode, ctx: RenderContext, key: number): React.R
       return <del key={key}>{renderNodes(node.children, ctx)}</del>;
     case "inlineCode":
       return (
-        <code key={key} className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[0.85em] text-slate-800">
+        <code key={key} className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[0.8em] text-slate-800">
           {node.value}
         </code>
       );
@@ -79,9 +81,11 @@ function renderNode(node: ArticleNode, ctx: RenderContext, key: number): React.R
         return <MermaidDiagram key={key} code={node.value} />;
       }
       return (
-        <div key={key} className="my-6 overflow-hidden rounded-lg border border-slate-200 text-sm shadow-sm">
+        <div key={key} className="article-code my-6 overflow-hidden rounded-lg border border-slate-200 shadow-sm">
           {node.lang && (
-            <div className="border-b border-slate-200 bg-slate-50 px-3 py-1 font-mono text-xs text-slate-500">{node.lang}</div>
+            <div className="border-b border-slate-200 bg-slate-50 px-3 py-1.5 font-mono text-xs text-slate-500 sm:text-sm">
+              {node.lang}
+            </div>
           )}
           <CodeEditor value={node.value} language={node.lang ?? "text"} readOnly height="auto" />
         </div>
@@ -143,7 +147,7 @@ function renderTable(node: Extract<ArticleNode, { type: "table" }>, ctx: RenderC
           cell.type === "tableCell" ? (
             <CellTag
               key={i}
-              className={`border border-slate-200 px-3 py-2 text-left align-top ${isHeader ? "bg-slate-50 font-semibold" : ""}`}
+              className={`border border-slate-200 px-3 py-2 text-left align-top text-base sm:text-lg ${isHeader ? "bg-slate-50 font-semibold" : ""}`}
               style={node.align[i] ? { textAlign: node.align[i] as "left" | "right" | "center" } : undefined}
             >
               {renderNodes(cell.children, ctx)}
@@ -156,7 +160,7 @@ function renderTable(node: Extract<ArticleNode, { type: "table" }>, ctx: RenderC
 
   return (
     <div key={key} className="my-6 overflow-x-auto">
-      <table className="w-full border-collapse text-sm">
+      <table className="w-full border-collapse">
         {headerRow && <thead>{renderRow(headerRow, true, "header")}</thead>}
         <tbody>{bodyRows.map((row, i) => renderRow(row, false, i))}</tbody>
       </table>

@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { Avatar } from "@/components/blog/Avatar";
 import { ArticleContent } from "@/components/blog/ArticleContent";
-import { TableOfContents } from "@/components/blog/TableOfContents";
+import { TocLinks } from "@/components/blog/TableOfContents";
 
 const EXAMPLE_MARKDOWN = `---
 title: Introducción a los árboles AVL
@@ -199,7 +199,7 @@ export function ArticleEditorForm({ initial, authorName }: { initial?: ArticleEd
               {preview.frontmatter.tags.length > 0 && (
                 <div className="mb-2 flex flex-wrap gap-2">
                   {preview.frontmatter.tags.map((tag) => (
-                    <span key={tag} className="text-xs font-semibold uppercase tracking-wide text-brand-700">
+                    <span key={tag} className="text-sm font-semibold uppercase tracking-wide text-brand-700">
                       {tag}
                     </span>
                   ))}
@@ -209,13 +209,14 @@ export function ArticleEditorForm({ initial, authorName }: { initial?: ArticleEd
               <div className="mt-4 mb-6 flex items-center gap-3">
                 <Avatar name={authorName} size="sm" />
                 <div>
-                  <p className="text-sm font-medium text-slate-900">{authorName}</p>
-                  <p className="text-xs text-slate-500">Hoy · {preview.readingTimeMinutes} min de lectura</p>
+                  <p className="text-base font-medium text-slate-900">{authorName}</p>
+                  <p className="text-sm text-slate-500">Hoy · {preview.readingTimeMinutes} min de lectura</p>
                 </div>
               </div>
               {preview.headings.length > 0 && (
                 <div className="mb-6 rounded-lg border border-slate-200 p-4">
-                  <TableOfContents headings={preview.headings} />
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Contenido</p>
+                  <TocLinks headings={preview.headings} activeId={null} />
                 </div>
               )}
               <ArticleContent content={preview.content} headings={preview.headings} />

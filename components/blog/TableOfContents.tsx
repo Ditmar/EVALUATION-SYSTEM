@@ -2,16 +2,28 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ArticleHeading } from "@/lib/blog/types";
+import { CloseIcon, MenuIcon } from "@/components/ui/icons";
 
-function TocLinks({ headings, activeId, onNavigate }: { headings: ArticleHeading[]; activeId: string | null; onNavigate?: () => void }) {
+/** Exported for the admin editor's preview pane, which shows the heading list inline without the real page's fixed mobile button/sidebar chrome. */
+export function TocLinks({
+  headings,
+  activeId,
+  onNavigate,
+  size = "sm",
+}: {
+  headings: ArticleHeading[];
+  activeId: string | null;
+  onNavigate?: () => void;
+  size?: "sm" | "base";
+}) {
   return (
-    <ul className="space-y-2 text-sm">
+    <ul className={`space-y-3 ${size === "base" ? "text-base" : "text-sm"}`}>
       {headings.map((h) => (
-        <li key={h.id} style={{ paddingLeft: h.depth === 3 ? "0.75rem" : 0 }}>
+        <li key={h.id} style={{ paddingLeft: h.depth === 3 ? "1rem" : 0 }}>
           <a
             href={`#${h.id}`}
             onClick={onNavigate}
-            className={`block truncate transition-colors ${
+            className={`block py-0.5 leading-snug transition-colors ${
               activeId === h.id ? "font-medium text-brand-700" : "text-slate-500 hover:text-slate-900"
             }`}
           >
@@ -24,13 +36,17 @@ function TocLinks({ headings, activeId, onNavigate }: { headings: ArticleHeading
 }
 
 /**
- * Index of contents for an article: a sticky sidebar on desktop (`lg:`), a
- * collapsible `<details>` above the article body on mobile. Highlights the
- * heading currently in view via `IntersectionObserver` rather than a scroll
- * handler (cheaper, no manual rAF throttling needed).
+ * Index of contents for an article: a sticky sidebar on desktop (`lg:`,
+ * works because the shared grid row stretches its column to the article's
+ * full height, giving `position: sticky` room to travel). On mobile there is
+ * no such tall container to stick within, so instead of a half-working
+ * sticky box we use a `fixed` floating button + bottom-sheet panel — always
+ * reachable at the same spot on screen no matter how far you've scrolled
+ * into the article.
  */
 export function TableOfContents({ headings }: { headings: ArticleHeading[] }) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
   useEffect(() => {
@@ -61,13 +77,36 @@ export function TableOfContents({ headings }: { headings: ArticleHeading[] }) {
         <TocLinks headings={headings} activeId={activeId} />
       </nav>
 
-      {/* Mobile/tablet: collapsible summary */}
-      <details className="mb-8 rounded-lg border border-slate-200 bg-white p-4 lg:hidden">
-        <summary className="cursor-pointer text-sm font-semibold text-slate-900">Contenido del artículo</summary>
-        <div className="mt-3">
-          <TocLinks headings={headings} activeId={activeId} />
+      {/* Mobile/tablet: floating button, fixed to the viewport so it stays reachable at every scroll position (not left behind like an inline collapsible would be). */}
+      <button
+        type="button"
+        onClick={() => setMobileOpen(true)}
+        aria-label="Abrir contenido del artículo"
+        className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-slate-900 px-4 py-3 text-base font-medium text-white shadow-lg active:scale-95 lg:hidden"
+      >
+        <MenuIcon className="h-5 w-5" />
+        Contenido
+      </button>
+
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <div className="absolute inset-0 bg-slate-900/50" onClick={() => setMobileOpen(false)} />
+          <div className="absolute inset-x-0 bottom-0 max-h-[75vh] overflow-y-auto rounded-t-2xl border-t border-slate-200 bg-white p-5 pb-8 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-base font-semibold text-slate-900">Contenido del artículo</p>
+              <button
+                type="button"
+                onClick={() => setMobileOpen(false)}
+                aria-label="Cerrar"
+                className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <CloseIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <TocLinks headings={headings} activeId={activeId} onNavigate={() => setMobileOpen(false)} size="base" />
+          </div>
         </div>
-      </details>
+      )}
     </>
   );
 }

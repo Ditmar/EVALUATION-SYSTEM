@@ -62,8 +62,8 @@ export function CommentSection({ slug, canComment, commenterName }: { slug: stri
   }
 
   return (
-    <section className="mt-16 border-t border-slate-200 pt-10">
-      <h2 className="mb-6 text-xl font-bold text-slate-900">
+    <section className="mt-12 border-t border-slate-200 pt-8 sm:mt-16 sm:pt-10">
+      <h2 className="mb-6 text-lg font-bold text-slate-900 sm:text-xl">
         Comentarios{comments && comments.length > 0 ? ` (${comments.length})` : ""}
       </h2>
 
@@ -77,6 +77,7 @@ export function CommentSection({ slug, canComment, commenterName }: { slug: stri
               rows={3}
               placeholder="Escribe un comentario..."
               maxLength={2000}
+              className="text-base"
             />
             {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
             <div className="mt-2 flex justify-end">
@@ -87,7 +88,7 @@ export function CommentSection({ slug, canComment, commenterName }: { slug: stri
           </div>
         </form>
       ) : (
-        <p className="mb-8 rounded-lg bg-slate-50 p-4 text-sm text-slate-600">
+        <p className="mb-8 rounded-lg bg-slate-50 p-4 text-base text-slate-600">
           Inicia sesión como{" "}
           <Link href="/student/login" className="font-medium text-brand-700 underline">
             estudiante
@@ -101,23 +102,23 @@ export function CommentSection({ slug, canComment, commenterName }: { slug: stri
       )}
 
       {comments === null ? (
-        <p className="text-sm text-slate-400">Cargando comentarios...</p>
+        <p className="text-base text-slate-400">Cargando comentarios...</p>
       ) : comments.length === 0 ? (
-        <p className="text-sm text-slate-400">Sé el primero en comentar.</p>
+        <p className="text-base text-slate-400">Sé el primero en comentar.</p>
       ) : (
         <ul className="space-y-6">
           {comments.map((c) => (
             <li key={c.id} className="flex gap-3">
               <Avatar name={c.authorName} size="sm" />
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-slate-900">{c.authorName}</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-base font-semibold text-slate-900">{c.authorName}</span>
                   {c.authorType === "STAFF" && (
                     <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700">Docente</span>
                   )}
-                  <span className="text-xs text-slate-400">{formatDate(c.createdAt)}</span>
+                  <span className="text-sm text-slate-400">{formatDate(c.createdAt)}</span>
                 </div>
-                <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{c.content}</p>
+                <p className="mt-1 whitespace-pre-wrap text-base text-slate-700">{c.content}</p>
               </div>
             </li>
           ))}

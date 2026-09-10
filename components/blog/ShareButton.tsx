@@ -31,7 +31,7 @@ export function ShareButton({ title }: { title: string }) {
     <button
       type="button"
       onClick={handleShare}
-      className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300"
+      className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-base font-medium text-slate-600 transition-colors hover:border-slate-300 sm:py-2"
     >
       <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.5}>
         <path

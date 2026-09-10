@@ -51,6 +51,19 @@ h1, h2, h3 {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
   }
 
+  /* CodeMirror's own theme sets a small fixed font-size regardless of the
+     surrounding prose scale — scoped override so code blocks in articles
+     stay legible on phones instead of reading noticeably smaller than the
+     text around them (see components/blog/ArticleContent.tsx). */
+  .article-code .cm-editor {
+    font-size: 0.9375rem;
+  }
+  @media (min-width: 640px) {
+    .article-code .cm-editor {
+      font-size: 1rem;
+    }
+  }
+
   /* Thin, unobtrusive scrollbar for the admin sidebar and other dark surfaces. */
   .scrollbar-thin {
     scrollbar-width: thin;

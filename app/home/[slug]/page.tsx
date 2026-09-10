@@ -33,12 +33,12 @@ export default async function ArticlePage({ params }: { params: { slug: string }
   }
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-      <header className="mb-10 max-w-3xl">
+    <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
+      <header className="mb-8 max-w-3xl sm:mb-10">
         {article.tags.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-2">
             {article.tags.map((tag) => (
-              <span key={tag} className="text-xs font-semibold uppercase tracking-wide text-brand-700">
+              <span key={tag} className="text-sm font-semibold uppercase tracking-wide text-brand-700">
                 {tag}
               </span>
             ))}
@@ -48,8 +48,8 @@ export default async function ArticlePage({ params }: { params: { slug: string }
         <div className="mt-6 flex items-center gap-3">
           <Avatar name={article.authorName} />
           <div>
-            <p className="text-sm font-medium text-slate-900">{article.authorName}</p>
-            <p className="text-sm text-slate-500">
+            <p className="text-base font-medium text-slate-900">{article.authorName}</p>
+            <p className="text-sm text-slate-500 sm:text-base">
               {formatDate(article.publishedAt)} · {article.readingTimeMinutes} min de lectura
             </p>
           </div>
@@ -61,13 +61,11 @@ export default async function ArticlePage({ params }: { params: { slug: string }
       </header>
 
       <div className="grid gap-10 lg:grid-cols-[1fr_220px]">
-        <div className="order-last min-w-0 max-w-3xl lg:order-none">
+        <div className="min-w-0 max-w-3xl">
           <ArticleContent content={article.definition.content} headings={article.definition.headings} />
           <CommentSection slug={article.slug} canComment={Boolean(commenterName)} commenterName={commenterName} />
         </div>
-        <div className="order-first lg:order-none">
-          <TableOfContents headings={article.definition.headings} />
-        </div>
+        <TableOfContents headings={article.definition.headings} />
       </div>
     </main>
   );

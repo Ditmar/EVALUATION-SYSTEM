@@ -86,7 +86,7 @@ export function ApplauseButton({ slug, initialTotal }: { slug: string; initialTo
       onClick={handleClick}
       aria-pressed={clapped}
       title="Aplaudir este artículo"
-      className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
+      className={`flex items-center gap-2 rounded-full border px-4 py-2.5 text-base font-medium transition-colors sm:py-2 ${
         clapped ? "border-brand-200 bg-brand-50 text-brand-700" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
       }`}
     >
