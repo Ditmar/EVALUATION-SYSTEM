@@ -31,6 +31,26 @@ definiciones de referencia — producen un error de parseo explícito.
 Los bloques de código declaran el lenguaje (` ```python `, ` ```java `, etc.)
 para el resaltado de sintaxis en la vista pública.
 
+## Diagramas (Mermaid)
+
+Un bloque de código con lenguaje `mermaid` se renderiza como un diagrama SVG
+en vez de código resaltado — soporta cualquier tipo de diagrama de Mermaid
+(flowchart, sequenceDiagram, classDiagram, stateDiagram, erDiagram, gantt,
+etc.):
+
+```md
+​```mermaid
+flowchart TD
+    A[Inicio] --> B{¿Balanceado?}
+    B -- Sí --> C[Fin]
+    B -- No --> D[Rotar]
+    D --> B
+​```
+```
+
+Un error de sintaxis en el diagrama se muestra como un aviso en rojo en el
+lugar del diagrama, sin romper el resto del artículo.
+
 ## Ecuaciones (LaTeX)
 
 Vía `$...$` (inline) y `$$...$$` (bloque), igual que `remark-math`. También se

@@ -38,6 +38,17 @@ def rotar_derecha(n):
     return pivote
 \`\`\`
 
+## Diagrama del proceso
+
+\`\`\`mermaid
+flowchart TD
+    A[Insertar nodo] --> B{¿Factor de balance fuera de -1..1?}
+    B -- No --> C[Fin]
+    B -- Sí --> D[Determinar caso: LL, LR, RL o RR]
+    D --> E[Aplicar rotación]
+    E --> C
+\`\`\`
+
 | Caso      | Condición            | Rotación          |
 |-----------|-----------------------|--------------------|
 | Izquierda | FB > 1, hijo FB >= 0  | Simple derecha     |

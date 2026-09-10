@@ -3,6 +3,7 @@
 import type { ArticleHeading, ArticleNode } from "@/lib/blog/types";
 import { CodeEditor } from "@/components/CodeEditor";
 import { MathBlock, MathInline } from "@/components/laboratory/MathNode";
+import { MermaidDiagram } from "@/components/blog/MermaidDiagram";
 
 export interface ArticleContentProps {
   content: ArticleNode[];
@@ -74,6 +75,9 @@ function renderNode(node: ArticleNode, ctx: RenderContext, key: number): React.R
         </code>
       );
     case "code":
+      if (node.lang === "mermaid") {
+        return <MermaidDiagram key={key} code={node.value} />;
+      }
       return (
         <div key={key} className="my-6 overflow-hidden rounded-lg border border-slate-200 text-sm shadow-sm">
           {node.lang && (
