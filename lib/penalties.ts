@@ -59,3 +59,18 @@ export function applyPenaltyEvent(
       return { newCount, action: "warn" };
   }
 }
+
+/**
+ * Incidents counted toward the current penalty budget. `penaltyCount` is the
+ * lifetime total (never reset); `penaltyBaseline` is what had been counted
+ * when the teacher last reopened the attempt, so a reopened attempt starts a
+ * fresh budget of `maxPenalties` without erasing its incident history.
+ */
+export function activePenaltyCount(penaltyCount: number, penaltyBaseline: number): number {
+  return Math.max(0, penaltyCount - penaltyBaseline);
+}
+
+/** True when the attempt exhausted its current penalty budget. */
+export function isPenalized(penaltyCount: number, penaltyBaseline: number, maxPenalties: number): boolean {
+  return activePenaltyCount(penaltyCount, penaltyBaseline) >= maxPenalties;
+}

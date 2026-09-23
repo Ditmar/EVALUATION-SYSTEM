@@ -295,6 +295,14 @@ model ExamAttempt {
   observedIp   String?
   penaltyCount Int     @default(0)
 
+  // "Second chance" reopening by the teacher: penaltyCount keeps the full
+  // history of incidents, while penaltyBaseline records how many had already
+  // been counted at the last reopen, so the student gets a fresh budget of
+  // exam.maxPenalties incidents counted from that point on.
+  penaltyBaseline Int       @default(0)
+  reopenCount     Int       @default(0)
+  reopenedAt      DateTime?
+
   totalAutoScore   Float?
   totalManualScore Float?
   totalScore       Float?

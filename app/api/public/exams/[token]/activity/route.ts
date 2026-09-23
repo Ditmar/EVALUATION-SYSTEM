@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getAttemptSessionFromRequest } from "@/lib/auth/attempt-session";
 import { ActivityEventSchema } from "@/lib/validation/activity-schema";
-import { applyPenaltyEvent, isPenaltyEvent, type OnMaxPenalties, type PenaltyEventType } from "@/lib/penalties";
+import {
+  activePenaltyCount,
+  applyPenaltyEvent,
+  isPenaltyEvent,
+  type OnMaxPenalties,
+  type PenaltyEventType,
+} from "@/lib/penalties";
 import { finalizeAttempt } from "@/lib/attempt-finalize";
 import { checkPublicRateLimit } from "@/lib/rate-limit-guard";
 
@@ -34,14 +40,17 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
   const eventType = parsed.data.type as PenaltyEventType;
   const penalizable = attempt.status === "IN_PROGRESS" && exam.trackFocusEvents;
 
+  // The threshold is evaluated against the active budget (incidents since the
+  // last reopen); the lifetime total keeps accumulating in penaltyCount.
+  const activeCount = activePenaltyCount(attempt.penaltyCount, attempt.penaltyBaseline);
   const result = penalizable
     ? applyPenaltyEvent(
-        attempt.penaltyCount,
+        activeCount,
         exam.maxPenalties,
         eventType,
         exam.onMaxPenalties.toLowerCase() as OnMaxPenalties
       )
-    : { newCount: attempt.penaltyCount, action: "none" as const };
+    : { newCount: activeCount, action: "none" as const };
 
   await prisma.activityEvent.create({
     data: {
@@ -58,10 +67,10 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
     },
   });
 
-  if (result.newCount !== attempt.penaltyCount) {
+  if (result.newCount !== activeCount) {
     await prisma.examAttempt.update({
       where: { id: attempt.id },
-      data: { penaltyCount: result.newCount },
+      data: { penaltyCount: attempt.penaltyBaseline + result.newCount },
     });
   }
 

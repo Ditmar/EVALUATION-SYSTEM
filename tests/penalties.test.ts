@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyPenaltyEvent } from "@/lib/penalties";
+import { activePenaltyCount, applyPenaltyEvent, isPenalized } from "@/lib/penalties";
 
 describe("applyPenaltyEvent", () => {
   it("does not increment the counter for informational events", () => {
@@ -34,5 +34,20 @@ describe("applyPenaltyEvent", () => {
 
   it("respects a custom maxPenalties threshold", () => {
     expect(applyPenaltyEvent(0, 1, "tab_hidden", "auto_submit")).toEqual({ newCount: 1, action: "auto_submit" });
+  });
+});
+
+describe("penalty budget after a reopen", () => {
+  it("counts only incidents since the last reopen", () => {
+    expect(activePenaltyCount(3, 0)).toBe(3);
+    expect(activePenaltyCount(3, 3)).toBe(0);
+    expect(activePenaltyCount(4, 3)).toBe(1);
+  });
+
+  it("treats an attempt as penalized only once the active budget is exhausted", () => {
+    expect(isPenalized(3, 0, 3)).toBe(true);
+    expect(isPenalized(3, 3, 3)).toBe(false);
+    expect(isPenalized(5, 3, 3)).toBe(false);
+    expect(isPenalized(6, 3, 3)).toBe(true);
   });
 });

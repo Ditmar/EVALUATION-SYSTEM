@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getAttemptSessionFromRequest } from "@/lib/auth/attempt-session";
 import { remainingMs } from "@/lib/time";
 import { finalizeAttempt } from "@/lib/attempt-finalize";
+import { activePenaltyCount } from "@/lib/penalties";
 
 export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
   const exam = await prisma.exam.findUnique({
@@ -57,7 +58,8 @@ export async function GET(request: NextRequest, { params }: { params: { token: s
   return NextResponse.json({
     status: attempt.status,
     remainingMs: remainingMs(attempt.expiresAt),
-    penaltyCount: attempt.penaltyCount,
+    penaltyCount: activePenaltyCount(attempt.penaltyCount, attempt.penaltyBaseline),
+    reopened: attempt.reopenCount > 0,
     maxPenalties: exam.maxPenalties,
     trackFocusEvents: exam.trackFocusEvents,
     student: { nombres: attempt.nombres, apellidos: attempt.apellidos, ci: attempt.ci, correo: attempt.correo },

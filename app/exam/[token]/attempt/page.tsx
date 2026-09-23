@@ -23,6 +23,7 @@ export default function ExamAttemptPage({ params }: { params: { token: string } 
   const [maxPenalties, setMaxPenalties] = useState(3);
   const [penaltyCount, setPenaltyCount] = useState(0);
   const [trackFocusEvents, setTrackFocusEvents] = useState(true);
+  const [reopened, setReopened] = useState(false);
   const [lastPenaltyMessage, setLastPenaltyMessage] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -48,6 +49,7 @@ export default function ExamAttemptPage({ params }: { params: { token: string } 
         setMaxPenalties(data.maxPenalties);
         setPenaltyCount(data.penaltyCount);
         setTrackFocusEvents(data.trackFocusEvents);
+        setReopened(Boolean(data.reopened));
         setDeadline(Date.now() + data.remainingMs);
 
         const initialAnswers: Record<string, AnswerValue> = {};
@@ -173,6 +175,12 @@ export default function ExamAttemptPage({ params }: { params: { token: string } 
 
       {deadline && <CountdownTimer deadline={deadline} onExpire={submitExam} />}
       <PenaltyWarningBanner penaltyCount={penaltyCount} maxPenalties={maxPenalties} lastMessage={lastPenaltyMessage} />
+      {reopened && (
+        <div className="border-b border-blue-200 bg-blue-50 p-3 text-center text-sm text-blue-800">
+          Tu docente reabrió este examen como segunda oportunidad. Tus incidencias anteriores quedan registradas y, si
+          vuelves a alcanzar el máximo, el examen se cerrará nuevamente.
+        </div>
+      )}
 
       <div className="mx-auto max-w-4xl px-4 py-6">
         <QuestionList questions={questions} answers={answers} onChange={handleAnswerChange} />

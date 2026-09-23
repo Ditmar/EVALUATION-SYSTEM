@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { LiveAttemptsPanel } from "@/components/admin/LiveAttemptsPanel";
 import { FinishedAttemptsTable } from "@/components/admin/FinishedAttemptsTable";
 import { Spinner } from "@/components/ui/Spinner";
@@ -14,22 +14,24 @@ interface AttemptsData {
 export function ExamMonitoringSection({ examId }: { examId: string }) {
   const [data, setData] = useState<AttemptsData | null>(null);
 
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/admin/exams/${examId}/attempts`);
+    if (res.ok) setData(await res.json());
+  }, [examId]);
+
   useEffect(() => {
     let cancelled = false;
+    const tick = () => {
+      if (!cancelled) load();
+    };
 
-    async function load() {
-      const res = await fetch(`/api/admin/exams/${examId}/attempts`);
-      if (cancelled) return;
-      if (res.ok) setData(await res.json());
-    }
-
-    load();
-    const interval = setInterval(load, 5000);
+    tick();
+    const interval = setInterval(tick, 5000);
     return () => {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [examId]);
+  }, [load]);
 
   if (!data) {
     return (
@@ -42,7 +44,7 @@ export function ExamMonitoringSection({ examId }: { examId: string }) {
   return (
     <div className="space-y-6">
       <LiveAttemptsPanel attempts={data.live} predominantIp={data.predominantIp} />
-      <FinishedAttemptsTable examId={examId} attempts={data.finished} />
+      <FinishedAttemptsTable examId={examId} attempts={data.finished} onChanged={load} />
     </div>
   );
 }

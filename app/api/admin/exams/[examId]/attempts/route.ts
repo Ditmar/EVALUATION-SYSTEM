@@ -4,6 +4,7 @@ import { requireAdminSession } from "@/lib/auth/require-admin";
 import { computeTotalScore } from "@/lib/grading/totals";
 import { computePredominantIp, isDifferentFromPredominant } from "@/lib/ip-utils";
 import { finalizeAttempt } from "@/lib/attempt-finalize";
+import { isPenalized } from "@/lib/penalties";
 
 export async function GET(request: NextRequest, { params }: { params: { examId: string } }) {
   const auth = await requireAdminSession(request);
@@ -47,6 +48,7 @@ export async function GET(request: NextRequest, { params }: { params: { examId: 
     expiresAt: a.expiresAt,
     observedIp: a.observedIp,
     penaltyCount: a.penaltyCount,
+    reopenCount: a.reopenCount,
     differentIp: exam.monitorExternalIps && exam.differentIpPolicy !== "OFF"
       ? isDifferentFromPredominant(a.observedIp, predominantIp)
       : false,
@@ -65,6 +67,13 @@ export async function GET(request: NextRequest, { params }: { params: { examId: 
       submittedAt: a.submittedAt,
       observedIp: a.observedIp,
       penaltyCount: a.penaltyCount,
+      reopenCount: a.reopenCount,
+      canReopen:
+        (a.status === "SUBMITTED" || a.status === "LOCKED") &&
+        isPenalized(a.penaltyCount, a.penaltyBaseline, exam.maxPenalties),
+      // Time the student still had when the penalty closed the attempt,
+      // offered as the default duration for a reopen.
+      suggestedReopenMinutes: suggestReopenMinutes(a.expiresAt, a.submittedAt, exam.durationMinutes),
       totalAutoScore: a.totalScore !== null ? a.totalAutoScore : totals.totalAutoScore,
       totalManualScore: a.totalScore !== null ? a.totalManualScore : totals.totalManualScore,
       totalScore: a.totalScore !== null ? a.totalScore : totals.totalScore,
@@ -79,4 +88,10 @@ export async function GET(request: NextRequest, { params }: { params: { examId: 
     monitorExternalIps: exam.monitorExternalIps,
     differentIpPolicy: exam.differentIpPolicy,
   });
+}
+
+function suggestReopenMinutes(expiresAt: Date, submittedAt: Date | null, durationMinutes: number): number {
+  if (!submittedAt) return durationMinutes;
+  const leftMinutes = Math.ceil((expiresAt.getTime() - submittedAt.getTime()) / 60_000);
+  return Math.min(durationMinutes, Math.max(5, leftMinutes));
 }
