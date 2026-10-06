@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { StreamLanguage } from "@codemirror/language";
@@ -85,7 +86,8 @@ interface CodeEditorProps {
   height?: string;
 }
 
-export function CodeEditor({ value, onChange, language, readOnly = false, height = "300px" }: CodeEditorProps) {
+// memo: read-only statement code blocks keep identical props across keystrokes elsewhere.
+export const CodeEditor = memo(function CodeEditor({ value, onChange, language, readOnly = false, height = "300px" }: CodeEditorProps) {
   return (
     <CodeMirror
       value={value}
@@ -97,4 +99,4 @@ export function CodeEditor({ value, onChange, language, readOnly = false, height
       basicSetup={{ lineNumbers: true, foldGutter: true }}
     />
   );
-}
+});
