@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { QuestionStatement } from "@/components/QuestionStatement";
 import { CodeAnswerGrader } from "@/components/admin/CodeAnswerGrader";
 import { ActivityEventsList } from "@/components/admin/ActivityEventsList";
+import { ScreenCaptureGallery } from "@/components/admin/ScreenCaptureGallery";
 
 interface Option {
   id: string;
@@ -120,6 +121,8 @@ export function AttemptGradingView({
       </Card>
 
       <ActivityEventsList events={attempt.activityEvents} />
+
+      <ScreenCaptureGallery examId={examId} attemptId={attempt.id} />
 
       {localQuestions.map((q, index) => (
         <Card key={q.id}>

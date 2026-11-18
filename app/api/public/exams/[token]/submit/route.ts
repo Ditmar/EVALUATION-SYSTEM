@@ -2,12 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getAttemptSessionFromRequest } from "@/lib/auth/attempt-session";
 import { finalizeAttempt } from "@/lib/attempt-finalize";
-import { checkPublicRateLimit } from "@/lib/rate-limit-guard";
+import { checkRateLimitByKey } from "@/lib/rate-limit-guard";
 
 export async function POST(request: NextRequest, { params }: { params: { token: string } }) {
-  const limited = checkPublicRateLimit(request, "submit");
-  if (limited) return limited;
-
   const exam = await prisma.exam.findUnique({ where: { publicToken: params.token } });
   if (!exam) {
     return NextResponse.json({ error: "Examen no encontrado." }, { status: 404 });
@@ -17,6 +14,9 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
   if (!session) {
     return NextResponse.json({ error: "No autorizado." }, { status: 401 });
   }
+
+  const limited = checkRateLimitByKey(`attempt:${session.attemptId}`, "submit");
+  if (limited) return limited;
 
   const attempt = await prisma.examAttempt.findUnique({ where: { id: session.attemptId } });
   if (!attempt) {

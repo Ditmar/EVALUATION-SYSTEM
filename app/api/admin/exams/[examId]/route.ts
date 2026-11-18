@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireAdminSession } from "@/lib/auth/require-admin";
+import { ScreenCaptureIntervalSchema } from "@/lib/validation/exam-schema";
 
 export async function GET(request: NextRequest, { params }: { params: { examId: string } }) {
   const auth = await requireAdminSession(request);
@@ -23,9 +24,11 @@ const PatchSchema = z
   .object({
     isPublished: z.boolean().optional(),
     accessMode: z.enum(["OPEN", "REGISTERED"]).optional(),
+    requireScreenCapture: z.boolean().optional(),
+    screenCaptureIntervalMinutes: ScreenCaptureIntervalSchema.optional(),
   })
-  .refine((d) => d.isPublished !== undefined || d.accessMode !== undefined, {
-    message: "Debe incluir isPublished o accessMode.",
+  .refine((d) => Object.values(d).some((v) => v !== undefined), {
+    message: "Debe incluir al menos un campo a actualizar.",
   });
 
 export async function PATCH(request: NextRequest, { params }: { params: { examId: string } }) {
@@ -45,7 +48,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { examId
     return NextResponse.json({ error: "Examen no encontrado." }, { status: 404 });
   }
 
-  const { isPublished, accessMode } = parsed.data;
+  const { isPublished, accessMode, requireScreenCapture, screenCaptureIntervalMinutes } = parsed.data;
 
   const exam = await prisma.exam.update({
     where: { id: params.examId },
@@ -56,6 +59,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { examId
         closedAt: !isPublished ? new Date() : null,
       }),
       ...(accessMode !== undefined && { accessMode }),
+      ...(requireScreenCapture !== undefined && { requireScreenCapture }),
+      ...(screenCaptureIntervalMinutes !== undefined && { screenCaptureIntervalMinutes }),
     },
   });
 

@@ -10,6 +10,8 @@ export default function ExamLandingPage({ params }: { params: { token: string } 
   const router = useRouter();
   const [state, setState] = useState<"loading" | "register" | "not-found">("loading");
   const [metadata, setMetadata] = useState<any>(null);
+  const [requireScreenCapture, setRequireScreenCapture] = useState(false);
+  const [captureIntervalMinutes, setCaptureIntervalMinutes] = useState(1);
 
   useEffect(() => {
     let cancelled = false;
@@ -32,6 +34,8 @@ export default function ExamLandingPage({ params }: { params: { token: string } 
       }
       const data = await metaRes.json();
       setMetadata(data.metadata);
+      setRequireScreenCapture(Boolean(data.settings?.requireScreenCapture));
+      setCaptureIntervalMinutes(data.settings?.screenCaptureIntervalMinutes ?? 1);
       setState("register");
     }
 
@@ -62,9 +66,23 @@ export default function ExamLandingPage({ params }: { params: { token: string } 
     );
   }
 
-  if (metadata.accessMode === "REGISTERED") {
-    return <RegisteredExamStart token={params.token} metadata={metadata} />;
-  }
+  const form =
+    metadata.accessMode === "REGISTERED" ? (
+      <RegisteredExamStart token={params.token} metadata={metadata} />
+    ) : (
+      <ExamRegistrationForm token={params.token} metadata={metadata} />
+    );
 
-  return <ExamRegistrationForm token={params.token} metadata={metadata} />;
+  if (!requireScreenCapture) return form;
+
+  return (
+    <>
+      <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-center text-sm text-amber-800">
+        Este examen requiere <strong>compartir tu pantalla completa</strong> y guarda una captura{" "}
+        {captureIntervalMinutes === 1 ? "cada minuto" : `cada ${captureIntervalMinutes} minutos`}. Ríndelo
+        desde una computadora con Chrome, Edge o Firefox (no funciona en celulares).
+      </div>
+      {form}
+    </>
+  );
 }

@@ -4,7 +4,9 @@ export type PenaltyEventType =
   | "fullscreen_exit"
   | "heartbeat"
   | "reconnect"
-  | "other";
+  | "other"
+  | "screen_share_started"
+  | "screen_share_stopped";
 
 export type OnMaxPenalties = "auto_submit" | "warn_only" | "lock_exam";
 
@@ -14,6 +16,7 @@ const PENALTY_EVENT_TYPES: ReadonlySet<PenaltyEventType> = new Set([
   "tab_hidden",
   "window_blur",
   "fullscreen_exit",
+  "screen_share_stopped",
 ]);
 
 export function isPenaltyEvent(type: PenaltyEventType): boolean {

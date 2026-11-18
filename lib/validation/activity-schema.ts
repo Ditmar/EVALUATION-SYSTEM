@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const ActivityEventSchema = z.object({
-  type: z.enum(["tab_hidden", "window_blur", "fullscreen_exit", "heartbeat", "reconnect", "other"]),
+  type: z.enum(["tab_hidden", "window_blur", "fullscreen_exit", "heartbeat", "reconnect", "other", "screen_share_started", "screen_share_stopped"]),
   detail: z.string().max(500).optional(),
 });
 

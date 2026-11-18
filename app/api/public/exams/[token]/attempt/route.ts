@@ -62,6 +62,8 @@ export async function GET(request: NextRequest, { params }: { params: { token: s
     reopened: attempt.reopenCount > 0,
     maxPenalties: exam.maxPenalties,
     trackFocusEvents: exam.trackFocusEvents,
+    requireScreenCapture: exam.requireScreenCapture,
+    screenCaptureIntervalMinutes: exam.screenCaptureIntervalMinutes,
     student: { nombres: attempt.nombres, apellidos: attempt.apellidos, ci: attempt.ci, correo: attempt.correo },
     questions,
   });

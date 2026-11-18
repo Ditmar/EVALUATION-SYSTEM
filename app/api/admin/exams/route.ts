@@ -98,6 +98,8 @@ export async function POST(request: NextRequest) {
       monitorExternalIps: settings.monitorExternalIps,
       differentIpPolicy: settings.differentIpPolicy.toUpperCase() as "OFF" | "WARN_ONLY" | "BLOCK",
       allowAiCodeEvaluation: settings.allowAiCodeEvaluation,
+      requireScreenCapture: settings.requireScreenCapture,
+      screenCaptureIntervalMinutes: settings.screenCaptureIntervalMinutes,
       publicToken: generatePublicToken(),
       createdById: auth.session.userId,
       questions: {

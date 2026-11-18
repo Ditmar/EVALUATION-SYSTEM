@@ -51,3 +51,12 @@ describe("penalty budget after a reopen", () => {
     expect(isPenalized(6, 3, 3)).toBe(true);
   });
 });
+
+describe("screen share events", () => {
+  it("counts screen_share_stopped as a penalty but not screen_share_started", async () => {
+    const { applyPenaltyEvent, isPenaltyEvent } = await import("@/lib/penalties");
+    expect(isPenaltyEvent("screen_share_stopped")).toBe(true);
+    expect(isPenaltyEvent("screen_share_started")).toBe(false);
+    expect(applyPenaltyEvent(0, 3, "screen_share_stopped", "auto_submit")).toEqual({ newCount: 1, action: "warn" });
+  });
+});

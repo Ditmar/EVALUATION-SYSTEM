@@ -8,6 +8,10 @@ import { Button } from "@/components/ui/Button";
 import { TextArea } from "@/components/ui/TextArea";
 import { Card } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Select";
+import {
+  ScreenCaptureSettingsFields,
+  type ScreenCaptureSettingsValue,
+} from "@/components/admin/ScreenCaptureSettingsFields";
 import { ExamPreview } from "@/components/admin/ExamPreview";
 
 interface Subject {
@@ -96,6 +100,10 @@ export function ExamImportForm() {
   const [newSubjectName, setNewSubjectName] = useState("");
   const [creatingSubject, setCreatingSubject] = useState(false);
   const [accessMode, setAccessMode] = useState<"OPEN" | "REGISTERED">("OPEN");
+  const [screenCapture, setScreenCapture] = useState<ScreenCaptureSettingsValue>({
+    requireScreenCapture: false,
+    screenCaptureIntervalMinutes: 1,
+  });
 
   useEffect(() => {
     fetch("/api/admin/subjects")
@@ -144,6 +152,14 @@ export function ExamImportForm() {
     }
 
     setPreview(parsed.data);
+    // Si el JSON trae configuración de captura, se precarga en la casilla (que luego manda).
+    const jsonSettings = (normalizedSettings(json) ?? {}) as Record<string, unknown>;
+    if ("requireScreenCapture" in jsonSettings || "screenCaptureIntervalMinutes" in jsonSettings) {
+      setScreenCapture({
+        requireScreenCapture: parsed.data.settings.requireScreenCapture,
+        screenCaptureIntervalMinutes: parsed.data.settings.screenCaptureIntervalMinutes,
+      });
+    }
   }
 
   async function handleSave() {
@@ -155,7 +171,13 @@ export function ExamImportForm() {
       const res = await fetch("/api/admin/exams", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...preview, subjectId, accessMode }),
+        body: JSON.stringify({
+          ...preview,
+          // La casilla del formulario manda sobre lo que diga el JSON.
+          settings: { ...preview.settings, ...screenCapture },
+          subjectId,
+          accessMode,
+        }),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -211,6 +233,11 @@ export function ExamImportForm() {
             </Select>
           </div>
         </div>
+      </Card>
+
+      <Card>
+        <h2 className="mb-3 font-medium text-slate-900">Supervisión</h2>
+        <ScreenCaptureSettingsFields value={screenCapture} onChange={setScreenCapture} />
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -271,4 +298,9 @@ function formatZodIssues(error: z.ZodError): string[] {
     const path = issue.path.join(".");
     return path ? `${path}: ${issue.message}` : issue.message;
   });
+}
+
+function normalizedSettings(json: unknown): unknown {
+  if (json && typeof json === "object" && "settings" in json) return (json as { settings: unknown }).settings;
+  return null;
 }

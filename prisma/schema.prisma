@@ -44,6 +44,8 @@ enum ActivityEventType {
   HEARTBEAT
   RECONNECT
   OTHER
+  SCREEN_SHARE_STARTED
+  SCREEN_SHARE_STOPPED
 }
 
 enum ExamAccessMode {
@@ -94,13 +96,13 @@ model User {
   createdBy    User?   @relation("UserCreatedBy", fields: [createdById], references: [id])
   createdUsers User[]  @relation("UserCreatedBy")
 
-  exams         Exam[]
-  gradedAnswers Answer[]                 @relation("GradedBy")
-  subjects      Subject[]
-  laboratories  Laboratory[]
+  exams           Exam[]
+  gradedAnswers   Answer[]                 @relation("GradedBy")
+  subjects        Subject[]
+  laboratories    Laboratory[]
   // Subjects an ASSISTANT account has been granted review access to — empty/unused for TEACHER accounts.
-  subjectAccess SubjectAssistantAccess[] @relation("AssistantAccess")
-  articles      Article[]
+  subjectAccess   SubjectAssistantAccess[] @relation("AssistantAccess")
+  articles        Article[]
   articleComments ArticleComment[]
 
   @@map("users")
@@ -144,17 +146,17 @@ model Subject {
 }
 
 model Student {
-  id           String   @id @default(cuid())
-  ci           String   @unique
-  nombres      String
-  apellidos    String
-  correo       String?
-  passwordHash String? // null hasta que el estudiante activa su cuenta
+  id                 String   @id @default(cuid())
+  ci                 String   @unique
+  nombres            String
+  apellidos          String
+  correo             String?
+  passwordHash       String? // null hasta que el estudiante activa su cuenta
   // true cuando el docente reseteó la contraseña: passwordHash guarda una
   // contraseña temporal de un solo uso y el login obliga a crear una nueva.
-  mustChangePassword Boolean @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  mustChangePassword Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   enrollments           Enrollment[]
   refreshTokens         StudentRefreshToken[]
@@ -210,12 +212,16 @@ model Exam {
   instructions    String   @db.Text
   evaluationType  String
 
-  maxPenalties          Int               @default(3)
-  onMaxPenalties        OnMaxPenalties    @default(AUTO_SUBMIT)
-  trackFocusEvents      Boolean           @default(true)
-  monitorExternalIps    Boolean           @default(true)
-  differentIpPolicy     DifferentIpPolicy @default(OFF)
-  allowAiCodeEvaluation Boolean           @default(true)
+  maxPenalties                 Int               @default(3)
+  onMaxPenalties               OnMaxPenalties    @default(AUTO_SUBMIT)
+  trackFocusEvents             Boolean           @default(true)
+  monitorExternalIps           Boolean           @default(true)
+  differentIpPolicy            DifferentIpPolicy @default(OFF)
+  allowAiCodeEvaluation        Boolean           @default(true)
+  // Exige compartir la pantalla completa durante el intento y sube una
+  // captura cada minuto a R2 (ver lib/storage/r2.ts).
+  requireScreenCapture         Boolean           @default(false)
+  screenCaptureIntervalMinutes Int               @default(1)
 
   publicToken String    @unique
   isPublished Boolean   @default(false)
@@ -315,6 +321,7 @@ model ExamAttempt {
 
   answers        Answer[]
   activityEvents ActivityEvent[]
+  screenCaptures ScreenCapture[]
 
   @@unique([examId, ci])
   @@index([examId, status])
@@ -364,6 +371,19 @@ model ActivityEvent {
 
   @@index([attemptId, createdAt])
   @@map("activity_events")
+}
+
+model ScreenCapture {
+  id         String      @id @default(cuid())
+  attemptId  String
+  attempt    ExamAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  // Clave del objeto en el bucket R2 (privado); se sirve con URLs firmadas.
+  storageKey String
+  sizeBytes  Int
+  createdAt  DateTime    @default(now())
+
+  @@index([attemptId, createdAt])
+  @@map("screen_captures")
 }
 
 model AiEvaluation {
@@ -607,9 +627,9 @@ model ArticleComment {
 
   authorType CommentAuthorType
   studentId  String?
-  student    Student? @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  student    Student?          @relation(fields: [studentId], references: [id], onDelete: SetNull)
   userId     String?
-  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user       User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
   authorName String
 
   createdAt DateTime @default(now())

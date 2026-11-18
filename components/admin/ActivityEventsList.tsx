@@ -16,6 +16,8 @@ const TYPE_LABEL: Record<string, string> = {
   HEARTBEAT: "Latido de conexión",
   RECONNECT: "Reconexión",
   OTHER: "Otro",
+  SCREEN_SHARE_STARTED: "Comenzó a compartir pantalla",
+  SCREEN_SHARE_STOPPED: "Dejó de compartir pantalla",
 };
 
 export function ActivityEventsList({ events }: { events: ActivityEvent[] }) {

@@ -17,3 +17,18 @@ export function checkPublicRateLimit(request: NextRequest, routeName: string): N
 
   return null;
 }
+
+/**
+ * Rate limit keyed by an authenticated identity (e.g. an exam attempt id)
+ * instead of by IP. Used by the in-exam routes: a whole classroom behind one
+ * NAT — or every client when the runtime can't see the real IP and falls back
+ * to "unknown" — must not share a single bucket, or legitimate answer saves
+ * start failing with 429 as soon as ~60 requests/minute arrive class-wide.
+ */
+export function checkRateLimitByKey(key: string, routeName: string): NextResponse | null {
+  const { allowed } = publicApiRateLimiter.check(`${key}:${routeName}`);
+  if (!allowed) {
+    return NextResponse.json({ error: "Demasiadas solicitudes. Intenta de nuevo en un momento." }, { status: 429 });
+  }
+  return null;
+}

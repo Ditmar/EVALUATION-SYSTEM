@@ -23,6 +23,8 @@ export async function GET(request: NextRequest, { params }: { params: { token: s
     settings: {
       trackFocusEvents: exam.trackFocusEvents,
       monitorExternalIps: exam.monitorExternalIps,
+      requireScreenCapture: exam.requireScreenCapture,
+      screenCaptureIntervalMinutes: exam.screenCaptureIntervalMinutes,
     },
   });
 }

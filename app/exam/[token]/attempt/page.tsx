@@ -6,6 +6,7 @@ import { CountdownTimer } from "@/components/student/CountdownTimer";
 import { PenaltyWarningBanner } from "@/components/student/PenaltyWarningBanner";
 import { FinalizeExamDialog } from "@/components/student/FinalizeExamDialog";
 import { ActivityMonitor } from "@/components/student/ActivityMonitor";
+import { ScreenCaptureGate } from "@/components/student/ScreenCaptureGate";
 import { QuestionList, type AnswerValue, type StudentQuestion } from "@/components/student/QuestionList";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
@@ -13,6 +14,13 @@ import { Spinner } from "@/components/ui/Spinner";
 type Screen = "loading" | "exam" | "finished" | "locked" | "unauthorized";
 
 const AUTOSAVE_DEBOUNCE_MS = 700;
+const SAVE_RETRY_DELAYS_MS = [1000, 2000, 4000];
+const BACKGROUND_RETRY_MS = 5000;
+
+type SaveStatus = "idle" | "saving" | "saved" | "error";
+type SaveOutcome = "ok" | "retry" | "fatal";
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export default function ExamAttemptPage({ params }: { params: { token: string } }) {
   const router = useRouter();
@@ -23,12 +31,23 @@ export default function ExamAttemptPage({ params }: { params: { token: string } 
   const [maxPenalties, setMaxPenalties] = useState(3);
   const [penaltyCount, setPenaltyCount] = useState(0);
   const [trackFocusEvents, setTrackFocusEvents] = useState(true);
+  const [requireScreenCapture, setRequireScreenCapture] = useState(false);
+  const [captureIntervalMinutes, setCaptureIntervalMinutes] = useState(1);
+  const suppressFocusRef = useRef(false);
   const [reopened, setReopened] = useState(false);
   const [lastPenaltyMessage, setLastPenaltyMessage] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  // Último valor de cada pregunta que todavía no llegó al servidor.
+  const pendingValues = useRef<Record<string, AnswerValue>>({});
+  // Un solo guardado en curso por pregunta: así un PUT viejo nunca pisa a uno nuevo.
+  const inFlight = useRef<Record<string, Promise<SaveOutcome>>>({});
+  const failedQuestions = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     fetch(`/api/public/exams/${params.token}/attempt`)
@@ -49,6 +68,8 @@ export default function ExamAttemptPage({ params }: { params: { token: string } 
         setMaxPenalties(data.maxPenalties);
         setPenaltyCount(data.penaltyCount);
         setTrackFocusEvents(data.trackFocusEvents);
+        setRequireScreenCapture(Boolean(data.requireScreenCapture));
+        setCaptureIntervalMinutes(data.screenCaptureIntervalMinutes ?? 1);
         setReopened(Boolean(data.reopened));
         setDeadline(Date.now() + data.remainingMs);
 
@@ -70,33 +91,145 @@ export default function ExamAttemptPage({ params }: { params: { token: string } 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.token]);
 
-  const saveAnswer = useCallback(
-    (questionId: string, value: AnswerValue) => {
-      fetch(`/api/public/exams/${params.token}/answers/${questionId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(value),
-      }).catch(() => {});
+  const refreshSaveStatus = useCallback(() => {
+    const busy = Object.keys(inFlight.current).length > 0 || Object.keys(pendingValues.current).length > 0;
+    if (failedQuestions.current.size > 0) setSaveStatus("error");
+    else setSaveStatus(busy ? "saving" : "saved");
+  }, []);
+
+  const putAnswer = useCallback(
+    async (questionId: string, value: AnswerValue): Promise<SaveOutcome> => {
+      for (let attempt = 0; ; attempt++) {
+        try {
+          const res = await fetch(`/api/public/exams/${params.token}/answers/${questionId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(value),
+          });
+          if (res.ok) return "ok";
+          // 401/404/409: el examen ya no acepta respuestas; reintentar no sirve.
+          if (res.status === 401 || res.status === 404 || res.status === 409) return "fatal";
+        } catch {
+          // error de red: se reintenta
+        }
+        if (attempt >= SAVE_RETRY_DELAYS_MS.length) return "retry";
+        await sleep(SAVE_RETRY_DELAYS_MS[attempt]);
+      }
     },
     [params.token]
   );
 
+  /** Envía el valor pendiente de una pregunta (y los que lleguen mientras tanto), en orden. */
+  const flushQuestion = useCallback(
+    (questionId: string): Promise<SaveOutcome> => {
+      clearTimeout(debounceTimers.current[questionId]);
+      delete debounceTimers.current[questionId];
+
+      const existing = inFlight.current[questionId];
+      if (existing) return existing;
+
+      const run = (async (): Promise<SaveOutcome> => {
+        let outcome: SaveOutcome = "ok";
+        while (pendingValues.current[questionId] !== undefined) {
+          const value = pendingValues.current[questionId];
+          delete pendingValues.current[questionId];
+          outcome = await putAnswer(questionId, value);
+          if (outcome !== "ok") {
+            // Conservar el valor (salvo que ya haya uno más nuevo) para reintentarlo.
+            if (outcome === "retry" && pendingValues.current[questionId] === undefined) {
+              pendingValues.current[questionId] = value;
+            }
+            break;
+          }
+        }
+        if (outcome === "ok") failedQuestions.current.delete(questionId);
+        else failedQuestions.current.add(questionId);
+        return outcome;
+      })();
+
+      inFlight.current[questionId] = run;
+      setSaveStatus("saving");
+      run.finally(() => {
+        delete inFlight.current[questionId];
+        refreshSaveStatus();
+      });
+      return run;
+    },
+    [putAnswer, refreshSaveStatus]
+  );
+
+  /** Envía todo lo pendiente y espera a que termine. Devuelve true si todo quedó guardado. */
+  const flushAll = useCallback(async (): Promise<boolean> => {
+    const ids = new Set([
+      ...Object.keys(pendingValues.current),
+      ...Object.keys(debounceTimers.current),
+      ...Object.keys(inFlight.current),
+    ]);
+    const outcomes = await Promise.all([...ids].map((id) => flushQuestion(id)));
+    return outcomes.every((o) => o === "ok");
+  }, [flushQuestion]);
+
+  // Reintento en segundo plano de respuestas que no se pudieron guardar (p. ej. sin conexión).
+  useEffect(() => {
+    if (saveStatus !== "error") return;
+    const timer = setTimeout(() => {
+      for (const id of Object.keys(pendingValues.current)) flushQuestion(id);
+    }, BACKGROUND_RETRY_MS);
+    return () => clearTimeout(timer);
+  }, [saveStatus, flushQuestion]);
+
+  // Avisar si intenta cerrar la pestaña con respuestas sin guardar.
+  useEffect(() => {
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      if (Object.keys(pendingValues.current).length > 0 || Object.keys(inFlight.current).length > 0) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
+
   function handleAnswerChange(questionId: string, value: AnswerValue) {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
+    pendingValues.current[questionId] = value;
+    setSaveStatus("saving");
     clearTimeout(debounceTimers.current[questionId]);
-    debounceTimers.current[questionId] = setTimeout(() => saveAnswer(questionId, value), AUTOSAVE_DEBOUNCE_MS);
+    debounceTimers.current[questionId] = setTimeout(() => flushQuestion(questionId), AUTOSAVE_DEBOUNCE_MS);
   }
 
-  const submitExam = useCallback(async () => {
-    setSubmitting(true);
-    try {
-      await fetch(`/api/public/exams/${params.token}/submit`, { method: "POST" });
-      setScreen("finished");
-    } finally {
-      setSubmitting(false);
-      setConfirmOpen(false);
-    }
-  }, [params.token]);
+  /**
+   * `force`: al vencer el tiempo se envía igual aunque algo no se haya podido
+   * guardar; al finalizar manualmente se bloquea y se avisa al estudiante.
+   */
+  const submitExam = useCallback(
+    async (force = false) => {
+      setSubmitting(true);
+      setSubmitError(null);
+      try {
+        const allSaved = await flushAll();
+        if (!allSaved && !force) {
+          setSubmitError("Algunas respuestas no se pudieron guardar. Revisa tu conexión y vuelve a intentar finalizar.");
+          return;
+        }
+        let res: Response | null = null;
+        for (let attempt = 0; attempt <= SAVE_RETRY_DELAYS_MS.length; attempt++) {
+          res = await fetch(`/api/public/exams/${params.token}/submit`, { method: "POST" }).catch(() => null);
+          if (res && (res.ok || res.status === 401 || res.status === 404)) break;
+          if (attempt < SAVE_RETRY_DELAYS_MS.length) await sleep(SAVE_RETRY_DELAYS_MS[attempt]);
+        }
+        if (!res || !res.ok) {
+          setSubmitError("No se pudo enviar el examen. Revisa tu conexión y vuelve a intentar.");
+          return;
+        }
+        setConfirmOpen(false);
+        setScreen("finished");
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [flushAll, params.token]
+  );
 
   const handleActivityResult = useCallback(
     (result: { penaltyCount: number; remaining: number; action: string }) => {
@@ -171,9 +304,14 @@ export default function ExamAttemptPage({ params }: { params: { token: string } 
 
   return (
     <div className="min-h-screen pb-24">
-      <ActivityMonitor token={params.token} enabled={trackFocusEvents} onResult={handleActivityResult} />
+      <ActivityMonitor
+        token={params.token}
+        enabled={trackFocusEvents}
+        onResult={handleActivityResult}
+        suppressRef={suppressFocusRef}
+      />
 
-      {deadline && <CountdownTimer deadline={deadline} onExpire={submitExam} />}
+      {deadline && <CountdownTimer deadline={deadline} onExpire={() => submitExam(true)} />}
       <PenaltyWarningBanner penaltyCount={penaltyCount} maxPenalties={maxPenalties} lastMessage={lastPenaltyMessage} />
       {reopened && (
         <div className="border-b border-blue-200 bg-blue-50 p-3 text-center text-sm text-blue-800">
@@ -182,15 +320,32 @@ export default function ExamAttemptPage({ params }: { params: { token: string } 
         </div>
       )}
 
-      <div className="mx-auto max-w-4xl px-4 py-6">
-        <QuestionList questions={questions} answers={answers} onChange={handleAnswerChange} />
-      </div>
+      {requireScreenCapture ? (
+        <ScreenCaptureGate
+          token={params.token}
+          suppressFocusRef={suppressFocusRef}
+          onActivityResult={handleActivityResult}
+          intervalMinutes={captureIntervalMinutes}
+        >
+          <div className="mx-auto max-w-4xl px-4 py-6">
+            <QuestionList questions={questions} answers={answers} onChange={handleAnswerChange} />
+          </div>
+        </ScreenCaptureGate>
+      ) : (
+        <div className="mx-auto max-w-4xl px-4 py-6">
+          <QuestionList questions={questions} answers={answers} onChange={handleAnswerChange} />
+        </div>
+      )}
 
       <div className="fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white p-4">
         <div className="mx-auto flex max-w-4xl items-center justify-between">
-          <p className="text-sm text-slate-500">
-            {answeredCount} de {questions.length} preguntas respondidas
-          </p>
+          <div className="text-sm">
+            <p className="text-slate-500">
+              {answeredCount} de {questions.length} preguntas respondidas
+            </p>
+            <SaveStatusLabel status={saveStatus} />
+            {submitError && !confirmOpen && <p className="text-red-600">{submitError}</p>}
+          </div>
           <Button onClick={() => setConfirmOpen(true)}>Finalizar examen</Button>
         </div>
       </div>
@@ -199,10 +354,19 @@ export default function ExamAttemptPage({ params }: { params: { token: string } 
         open={confirmOpen}
         answeredCount={answeredCount}
         totalCount={questions.length}
-        onConfirm={submitExam}
+        onConfirm={() => submitExam(false)}
         onCancel={() => setConfirmOpen(false)}
         submitting={submitting}
+        error={submitError}
       />
     </div>
   );
+}
+
+function SaveStatusLabel({ status }: { status: SaveStatus }) {
+  if (status === "saving") return <p className="text-xs text-slate-400">Guardando respuestas...</p>;
+  if (status === "saved") return <p className="text-xs text-emerald-600">Todas las respuestas guardadas</p>;
+  if (status === "error")
+    return <p className="text-xs font-medium text-red-600">Hay respuestas sin guardar (revisa tu conexión), reintentando...</p>;
+  return null;
 }

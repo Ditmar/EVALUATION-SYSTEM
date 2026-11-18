@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { ActivityEventType } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getAttemptSessionFromRequest } from "@/lib/auth/attempt-session";
 import { ActivityEventSchema } from "@/lib/validation/activity-schema";
@@ -10,12 +11,9 @@ import {
   type PenaltyEventType,
 } from "@/lib/penalties";
 import { finalizeAttempt } from "@/lib/attempt-finalize";
-import { checkPublicRateLimit } from "@/lib/rate-limit-guard";
+import { checkRateLimitByKey } from "@/lib/rate-limit-guard";
 
 export async function POST(request: NextRequest, { params }: { params: { token: string } }) {
-  const limited = checkPublicRateLimit(request, "activity");
-  if (limited) return limited;
-
   const exam = await prisma.exam.findUnique({ where: { publicToken: params.token } });
   if (!exam) {
     return NextResponse.json({ error: "Examen no encontrado." }, { status: 404 });
@@ -25,6 +23,9 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
   if (!session) {
     return NextResponse.json({ error: "No autorizado." }, { status: 401 });
   }
+
+  const limited = checkRateLimitByKey(`attempt:${session.attemptId}`, "activity");
+  if (limited) return limited;
 
   const attempt = await prisma.examAttempt.findUnique({ where: { id: session.attemptId } });
   if (!attempt) {
@@ -38,7 +39,11 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
   }
 
   const eventType = parsed.data.type as PenaltyEventType;
-  const penalizable = attempt.status === "IN_PROGRESS" && exam.trackFocusEvents;
+  // Dejar de compartir pantalla cuenta como incidencia en exámenes con
+  // captura obligatoria, aunque el monitoreo de foco esté desactivado.
+  const penalizable =
+    attempt.status === "IN_PROGRESS" &&
+    (exam.trackFocusEvents || (exam.requireScreenCapture && eventType === "screen_share_stopped"));
 
   // The threshold is evaluated against the active budget (incidents since the
   // last reopen); the lifetime total keeps accumulating in penaltyCount.
@@ -55,13 +60,7 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
   await prisma.activityEvent.create({
     data: {
       attemptId: attempt.id,
-      type: eventType.toUpperCase() as
-        | "TAB_HIDDEN"
-        | "WINDOW_BLUR"
-        | "FULLSCREEN_EXIT"
-        | "HEARTBEAT"
-        | "RECONNECT"
-        | "OTHER",
+      type: eventType.toUpperCase() as ActivityEventType,
       detail: parsed.data.detail ?? null,
       isPenalty: penalizable && isPenaltyEvent(eventType),
     },

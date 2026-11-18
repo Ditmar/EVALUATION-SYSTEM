@@ -5,6 +5,7 @@ import { PublishToggle } from "@/components/admin/PublishToggle";
 import { PublicUrlBox } from "@/components/admin/PublicUrlBox";
 import { CsvExportButton } from "@/components/admin/CsvExportButton";
 import { ExamMonitoringSection } from "@/components/admin/ExamMonitoringSection";
+import { ScreenCaptureToggle } from "@/components/admin/ScreenCaptureToggle";
 import { Card } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
 
@@ -18,6 +19,8 @@ interface ExamDetail {
   durationMinutes: number;
   isPublished: boolean;
   publicToken: string;
+  requireScreenCapture: boolean;
+  screenCaptureIntervalMinutes: number;
   questions: { id: string }[];
 }
 
@@ -65,6 +68,17 @@ export default function ExamDetailPage({ params }: { params: { examId: string } 
             El examen aún no está publicado; los estudiantes no podrán acceder hasta que lo publiques.
           </p>
         )}
+      </Card>
+
+      <Card>
+        <h3 className="mb-3 font-medium text-slate-900">Supervisión</h3>
+        <ScreenCaptureToggle
+          examId={exam.id}
+          initialValue={{
+            requireScreenCapture: exam.requireScreenCapture,
+            screenCaptureIntervalMinutes: exam.screenCaptureIntervalMinutes,
+          }}
+        />
       </Card>
 
       <ExamMonitoringSection examId={exam.id} />

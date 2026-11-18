@@ -38,6 +38,10 @@ export function ExamPreview({ exam }: { exam: ExamImportInput }) {
         <Badge tone={exam.settings.monitorExternalIps ? "yellow" : "gray"}>
           Monitoreo IP: {exam.settings.differentIpPolicy}
         </Badge>
+        <Badge tone={exam.settings.requireScreenCapture ? "yellow" : "gray"}>
+          Captura de pantalla:{" "}
+          {exam.settings.requireScreenCapture ? `cada ${exam.settings.screenCaptureIntervalMinutes} min` : "no"}
+        </Badge>
         <Badge tone={exam.settings.allowAiCodeEvaluation ? "green" : "gray"}>
           IA para código: {exam.settings.allowAiCodeEvaluation ? "habilitada" : "deshabilitada"}
         </Badge>

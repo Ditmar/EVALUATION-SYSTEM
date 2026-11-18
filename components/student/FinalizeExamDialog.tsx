@@ -8,6 +8,7 @@ export function FinalizeExamDialog({
   onConfirm,
   onCancel,
   submitting,
+  error,
 }: {
   open: boolean;
   answeredCount: number;
@@ -15,6 +16,7 @@ export function FinalizeExamDialog({
   onConfirm: () => void;
   onCancel: () => void;
   submitting: boolean;
+  error?: string | null;
 }) {
   return (
     <Modal
@@ -36,6 +38,7 @@ export function FinalizeExamDialog({
         Has respondido {answeredCount} de {totalCount} preguntas. Una vez enviado el examen no podrás
         modificar tus respuestas. ¿Deseas continuar?
       </p>
+      {error && <p className="mt-3 rounded-lg bg-red-50 p-3 text-red-700">{error}</p>}
     </Modal>
   );
 }

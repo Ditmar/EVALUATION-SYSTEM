@@ -84,6 +84,15 @@ export const ExamMetadataSchema = z.object({
   evaluationType: z.string().min(1),
 });
 
+export const SCREEN_CAPTURE_INTERVAL_MIN = 1;
+export const SCREEN_CAPTURE_INTERVAL_MAX = 60;
+
+export const ScreenCaptureIntervalSchema = z
+  .number()
+  .int("El intervalo de captura debe ser un número entero de minutos")
+  .min(SCREEN_CAPTURE_INTERVAL_MIN, `El intervalo de captura debe ser de al menos ${SCREEN_CAPTURE_INTERVAL_MIN} minuto`)
+  .max(SCREEN_CAPTURE_INTERVAL_MAX, `El intervalo de captura no puede superar ${SCREEN_CAPTURE_INTERVAL_MAX} minutos`);
+
 export const ExamSettingsSchema = z.object({
   maxPenalties: z.number().int().positive().default(3),
   onMaxPenalties: z.enum(["auto_submit", "warn_only", "lock_exam"]).default("auto_submit"),
@@ -91,6 +100,8 @@ export const ExamSettingsSchema = z.object({
   monitorExternalIps: z.boolean().default(true),
   differentIpPolicy: z.enum(["off", "warn_only", "block"]).default("off"),
   allowAiCodeEvaluation: z.boolean().default(true),
+  requireScreenCapture: z.boolean().default(false),
+  screenCaptureIntervalMinutes: ScreenCaptureIntervalSchema.default(1),
 });
 
 export const ExamImportSchema = z

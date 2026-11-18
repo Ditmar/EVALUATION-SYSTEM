@@ -4,15 +4,12 @@ import { getAttemptSessionFromRequest } from "@/lib/auth/attempt-session";
 import { AnswerSubmitSchema } from "@/lib/validation/activity-schema";
 import { gradeMultipleChoice, gradeSingleChoice } from "@/lib/grading/auto-grade";
 import { remainingMs } from "@/lib/time";
-import { checkPublicRateLimit } from "@/lib/rate-limit-guard";
+import { checkRateLimitByKey } from "@/lib/rate-limit-guard";
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: { token: string; questionId: string } }
 ) {
-  const limited = checkPublicRateLimit(request, "answers");
-  if (limited) return limited;
-
   const exam = await prisma.exam.findUnique({ where: { publicToken: params.token } });
   if (!exam) {
     return NextResponse.json({ error: "Examen no encontrado." }, { status: 404 });
@@ -22,6 +19,9 @@ export async function PUT(
   if (!session) {
     return NextResponse.json({ error: "No autorizado." }, { status: 401 });
   }
+
+  const limited = checkRateLimitByKey(`attempt:${session.attemptId}`, "answers");
+  if (limited) return limited;
 
   const attempt = await prisma.examAttempt.findUnique({ where: { id: session.attemptId } });
   if (!attempt) {

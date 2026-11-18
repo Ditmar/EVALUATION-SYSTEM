@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { MutableRefObject, useEffect, useRef } from "react";
 
 type PenaltyAction = "none" | "warn" | "lock" | "auto_submit";
 
@@ -14,6 +14,8 @@ interface Props {
   token: string;
   enabled: boolean;
   onResult: (result: ActivityResult, eventLabel: string) => void;
+  /** Mientras sea true se ignoran pérdidas de foco (p. ej. selector de compartir pantalla abierto). */
+  suppressRef?: MutableRefObject<boolean>;
 }
 
 const HEARTBEAT_INTERVAL_MS = 20_000;
@@ -24,7 +26,7 @@ const HEARTBEAT_INTERVAL_MS = 20_000;
  * and reports them to the server as "supervision alerts" — not proof of
  * cheating, just signals a teacher can review.
  */
-export function ActivityMonitor({ token, enabled, onResult }: Props) {
+export function ActivityMonitor({ token, enabled, onResult, suppressRef }: Props) {
   const wasFullscreenRef = useRef(false);
 
   useEffect(() => {
@@ -46,12 +48,14 @@ export function ActivityMonitor({ token, enabled, onResult }: Props) {
     }
 
     function handleVisibilityChange() {
+      if (suppressRef?.current) return;
       if (document.hidden) {
         postEvent("tab_hidden");
       }
     }
 
     function handleBlur() {
+      if (suppressRef?.current) return;
       // Avoid double-counting the common case where switching tabs fires both
       // visibilitychange and blur for the same physical action.
       if (!document.hidden) {
@@ -88,7 +92,7 @@ export function ActivityMonitor({ token, enabled, onResult }: Props) {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       clearInterval(heartbeat);
     };
-  }, [token, enabled, onResult]);
+  }, [token, enabled, onResult, suppressRef]);
 
   return null;
 }
