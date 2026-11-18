@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
       ...(subjectId ? { subjectId } : {}),
     },
     include: {
-      student: { select: { id: true, ci: true, nombres: true, apellidos: true, correo: true, passwordHash: true } },
+      student: { select: { id: true, ci: true, nombres: true, apellidos: true, correo: true, passwordHash: true, mustChangePassword: true } },
       subject: { select: { id: true, name: true } },
     },
     orderBy: [{ student: { apellidos: "asc" } }, { student: { nombres: "asc" } }],
@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
       apellidos: e.student.apellidos,
       correo: e.student.correo,
       activated: e.student.passwordHash !== null,
+      mustChangePassword: e.student.mustChangePassword,
       subjectId: e.subject.id,
       subjectName: e.subject.name,
     })),

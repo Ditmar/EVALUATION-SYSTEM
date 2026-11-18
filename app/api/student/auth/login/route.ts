@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { StudentLoginSchema } from "@/lib/validation/student-auth-schema";
 import { verifyPassword } from "@/lib/auth/password";
+import { normalizeTemporaryPassword } from "@/lib/auth/temporary-password";
 import { issueStudentSession, setStudentSessionCookies } from "@/lib/auth/student-session";
 import { checkPublicRateLimit } from "@/lib/rate-limit-guard";
 
@@ -24,9 +25,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: GENERIC_ERROR }, { status: 401 });
   }
 
-  const valid = await verifyPassword(password, student.passwordHash);
+  const candidate = student.mustChangePassword ? normalizeTemporaryPassword(password) : password;
+  const valid = await verifyPassword(candidate, student.passwordHash);
   if (!valid) {
     return NextResponse.json({ error: GENERIC_ERROR }, { status: 401 });
+  }
+
+  // Contraseña temporal (reseteada por el docente): no se abre sesión, el
+  // cliente debe pedir una contraseña nueva vía /api/student/auth/complete-reset.
+  if (student.mustChangePassword) {
+    return NextResponse.json({ mustChangePassword: true });
   }
 
   const tokens = await issueStudentSession(student.id);

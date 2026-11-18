@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { StudentSetNewPasswordForm } from "@/components/student/StudentSetNewPasswordForm";
 
 export function StudentLoginForm({ onSuccess }: { onSuccess: () => void }) {
   const [ci, setCi] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -25,10 +27,28 @@ export function StudentLoginForm({ onSuccess }: { onSuccess: () => void }) {
         setError(data.error ?? "No se pudo iniciar sesión.");
         return;
       }
+      if (data.mustChangePassword) {
+        setMustChangePassword(true);
+        return;
+      }
       onSuccess();
     } finally {
       setLoading(false);
     }
+  }
+
+  if (mustChangePassword) {
+    return (
+      <StudentSetNewPasswordForm
+        ci={ci}
+        temporaryPassword={password}
+        onSuccess={onSuccess}
+        onCancel={() => {
+          setMustChangePassword(false);
+          setPassword("");
+        }}
+      />
+    );
   }
 
   return (
@@ -55,6 +75,9 @@ export function StudentLoginForm({ onSuccess }: { onSuccess: () => void }) {
       <Button type="submit" disabled={loading} className="w-full">
         {loading ? "Ingresando..." : "Ingresar"}
       </Button>
+      <p className="text-center text-xs text-slate-500">
+        ¿Olvidaste tu contraseña? Pide a tu docente una contraseña temporal e ingrésala aquí.
+      </p>
     </form>
   );
 }

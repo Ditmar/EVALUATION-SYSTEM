@@ -8,3 +8,10 @@ export type StudentActivateInput = z.infer<typeof StudentActivateSchema>;
 
 export const StudentLoginSchema = z.object({ ci, password: z.string().min(1, "La contraseña es requerida") });
 export type StudentLoginInput = z.infer<typeof StudentLoginSchema>;
+
+export const StudentCompleteResetSchema = z.object({
+  ci,
+  temporaryPassword: z.string().min(1, "La contraseña temporal es requerida"),
+  newPassword: password,
+});
+export type StudentCompleteResetInput = z.infer<typeof StudentCompleteResetSchema>;
