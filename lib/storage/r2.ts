@@ -1,3 +1,4 @@
+import https from "node:https";
 import { AwsClient } from "aws4fetch";
 
 /**
@@ -41,14 +42,46 @@ function objectUrl(config: R2Config, key: string): string {
 export async function putObject(key: string, body: Uint8Array, contentType: string): Promise<void> {
   const config = getConfig();
   if (!config) throw new Error("R2 no está configurado.");
-  const res = await config.client.fetch(objectUrl(config, key), {
+  const blob = new Blob([body as Uint8Array<ArrayBuffer>], { type: contentType });
+
+  // Se firma con aws4fetch pero se envía con node:https y Content-Length
+  // explícito. Con `client.fetch` (o el fetch que Next.js parchea en las
+  // rutas) el cuerpo salía como stream "chunked" sin Content-Length y R2
+  // respondía 411 MissingContentLength.
+  const signed = await config.client.sign(objectUrl(config, key), {
     method: "PUT",
-    body: new Blob([body as Uint8Array<ArrayBuffer>], { type: contentType }),
+    body: blob,
     headers: { "Content-Type": contentType },
   });
-  if (!res.ok) {
-    throw new Error(`R2 PUT falló (${res.status}): ${await res.text().catch(() => "")}`);
+
+  const headers: Record<string, string> = {};
+  signed.headers.forEach((value, name) => {
+    headers[name] = value;
+  });
+  headers["content-length"] = String(body.byteLength);
+
+  const { status, text } = await httpsPut(signed.url, headers, body);
+  if (status < 200 || status >= 300) {
+    throw new Error(`R2 PUT falló (${status}): ${text}`);
   }
+}
+
+function httpsPut(
+  url: string,
+  headers: Record<string, string>,
+  body: Uint8Array
+): Promise<{ status: number; text: string }> {
+  return new Promise((resolve, reject) => {
+    const req = https.request(url, { method: "PUT", headers, timeout: 30_000 }, (res) => {
+      const chunks: Buffer[] = [];
+      res.on("data", (c: Buffer) => chunks.push(c));
+      res.on("end", () => resolve({ status: res.statusCode ?? 0, text: Buffer.concat(chunks).toString("utf8") }));
+      res.on("error", reject);
+    });
+    req.on("timeout", () => req.destroy(new Error("R2 PUT: tiempo de espera agotado")));
+    req.on("error", reject);
+    req.end(Buffer.from(body.buffer, body.byteOffset, body.byteLength));
+  });
 }
 
 /** URL GET firmada, válida `expiresInSeconds` segundos. */
