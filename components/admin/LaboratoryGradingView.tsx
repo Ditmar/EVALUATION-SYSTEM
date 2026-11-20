@@ -151,7 +151,17 @@ export function LaboratoryGradingView({
               {question.type === "github-pr" ? (
                 <GitHubReviewPanel labId={labId} submissionId={submission.id} questionId={question.id} />
               ) : (
-                <AnswerComponent question={question} value={submission.answers[question.id]} onChange={() => {}} disabled />
+                <AnswerComponent
+                  question={question}
+                  value={submission.answers[question.id]}
+                  onChange={() => {}}
+                  disabled
+                  imageUrl={
+                    question.type === "image"
+                      ? `/api/admin/laboratories/${labId}/submissions/${submission.id}/images/${encodeURIComponent(question.id)}`
+                      : undefined
+                  }
+                />
               )}
             </div>
 

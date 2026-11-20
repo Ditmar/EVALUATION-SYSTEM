@@ -1,7 +1,10 @@
+import { DEFAULT_IMAGE_MAX_SIZE_MB, IMAGE_MAX_SIZE_CEILING_MB, normalizeImageFormat } from "./image-upload";
 import {
   EVALUATOR_KINDS,
+  IMAGE_FORMATS,
   QUESTION_TYPES,
   type EvaluatorKind,
+  type ImageFormat,
   type LaboratoryParseError,
   type QuestionDefinition,
   type QuestionType,
@@ -173,6 +176,43 @@ export function parsePlaceholder(attrs: Record<string, string>): PlaceholderPars
       }
       const evaluator: "manual" | "ai" = evaluatorExplicit === "ai" ? "ai" : "manual";
       return { question: { ...base, type, source, evaluator } };
+    }
+
+    case "image": {
+      const errors: LaboratoryParseError[] = [];
+      if (evaluatorExplicit && evaluatorExplicit !== "manual") {
+        errors.push({ questionId: id, message: `Question "${id}" uses type="image", which only supports evaluator="manual".` });
+      }
+
+      let maxSizeMb = DEFAULT_IMAGE_MAX_SIZE_MB;
+      if (attrs["max-size"] !== undefined) {
+        const parsedSize = parseNumberAttr(attrs["max-size"]);
+        if (parsedSize === undefined || parsedSize <= 0 || parsedSize > IMAGE_MAX_SIZE_CEILING_MB) {
+          errors.push({
+            questionId: id,
+            message: `Question "${id}" tiene max-size="${attrs["max-size"]}" inválido: debe ser un número de MB mayor a 0 y menor o igual a ${IMAGE_MAX_SIZE_CEILING_MB}.`,
+          });
+        } else {
+          maxSizeMb = parsedSize;
+        }
+      }
+
+      let formats: ImageFormat[] = [...IMAGE_FORMATS];
+      const formatList = splitPipeList(attrs.formats);
+      if (formatList !== undefined) {
+        const invalid = formatList.filter((f) => normalizeImageFormat(f) === null);
+        if (invalid.length > 0 || formatList.length === 0) {
+          errors.push({
+            questionId: id,
+            message: `Question "${id}" tiene formats inválidos (${invalid.join(", ") || "vacío"}). Formatos soportados: ${IMAGE_FORMATS.join(", ")}.`,
+          });
+        } else {
+          formats = Array.from(new Set(formatList.map((f) => normalizeImageFormat(f) as ImageFormat)));
+        }
+      }
+
+      if (errors.length > 0) return { errors };
+      return { question: { ...base, type, maxSizeMb, formats, evaluator: "manual" } };
     }
   }
 }

@@ -60,10 +60,27 @@ hay una regla determinística —`correct`/`expected`+`tolerance`—, si no
 | `multiple-choice`  | `options="A\|B\|C"`, `correct="A\|C"`         | `string[]`              |
 | `select`           | `options="A\|B\|C"`, `correct`                | `string`                |
 | `code`             | `language` (java, python, javascript, ...)  | `string`                |
+| `image`            | `max-size` (MB, default `1`), `formats="png\|jpg\|gif\|webp"` (default: todos) | `string` (clave del archivo en R2) |
 
 `number` es correcto si `|respuesta - expected| <= tolerance`. `multiple-choice`
 es todo-o-nada: el conjunto respondido debe coincidir exactamente con
 `correct`. `code` nunca se ejecuta ni se autocalifica.
+
+`image` permite al estudiante subir una imagen (JPG, PNG, GIF o WEBP; SVG no
+se acepta). `max-size` es el peso máximo en MB (mayor a 0, máximo 10); si el
+archivo lo supera se rechaza en el navegador y también en el servidor. El
+formato se verifica por el contenido del archivo, no por su extensión. Solo
+admite `evaluator="manual"`.
+
+```md
+{{answer
+  id="captura-grafo"
+  type="image"
+  points="5"
+  max-size="1"
+  formats="png|jpg"
+}}
+```
 
 ## Placeholder `{{rubric}}`
 

@@ -28,7 +28,7 @@ interface RenderContext {
   githubAttempts?: Record<string, GithubAttemptSummary>;
 }
 
-const BLOCK_LEVEL_ANSWER_TYPES = new Set<QuestionDefinition["type"]>(["github-pr", "textarea", "code"]);
+const BLOCK_LEVEL_ANSWER_TYPES = new Set<QuestionDefinition["type"]>(["github-pr", "textarea", "code", "image"]);
 
 const HEADING_CLASSES: Record<number, string> = {
   1: "text-2xl font-semibold text-slate-900",

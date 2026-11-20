@@ -31,9 +31,18 @@ export const QUESTION_TYPES = [
   "select",
   "code",
   "github-pr",
+  "image",
 ] as const;
 
 export type QuestionType = (typeof QUESTION_TYPES)[number];
+
+/**
+ * Raster formats an `image` question may accept. SVG is deliberately absent:
+ * it's XML that can carry scripts, and these files end up served back to the
+ * teacher's browser.
+ */
+export const IMAGE_FORMATS = ["jpg", "png", "gif", "webp"] as const;
+export type ImageFormat = (typeof IMAGE_FORMATS)[number];
 
 export const EVALUATOR_KINDS = ["automatic", "manual", "ai"] as const;
 
@@ -110,6 +119,20 @@ export interface GitHubPullRequestQuestion extends Omit<BaseQuestion, "evaluator
   evaluator: "manual" | "ai";
 }
 
+/**
+ * The student uploads one image (stored in R2); the answer value is its
+ * storage key. Always graded by hand — there's no deterministic rule for an
+ * image and the AI evaluator is text-only.
+ */
+export interface ImageQuestion extends Omit<BaseQuestion, "evaluator"> {
+  type: "image";
+  /** Maximum file size in megabytes (`max-size`, default 1). */
+  maxSizeMb: number;
+  /** Accepted formats (`formats="png|jpg"`, default every `IMAGE_FORMATS` entry). */
+  formats: ImageFormat[];
+  evaluator: "manual";
+}
+
 export type QuestionDefinition =
   | TextQuestion
   | TextareaQuestion
@@ -119,7 +142,8 @@ export type QuestionDefinition =
   | MultipleChoiceQuestion
   | SelectQuestion
   | CodeQuestion
-  | GitHubPullRequestQuestion;
+  | GitHubPullRequestQuestion
+  | ImageQuestion;
 
 export const REPOSITORY_PROVIDERS = ["github"] as const;
 export type RepositoryProvider = (typeof REPOSITORY_PROVIDERS)[number];

@@ -35,6 +35,12 @@ export interface AnswerComponentProps {
   githubAttempt?: GithubAttemptSummary | null;
   /** The `{{repository}}` resource a `github-pr` question's `source` points at. A no-op for every other type. */
   repository?: RepositoryResource;
+  /**
+   * Only used by the `image` answer type: an endpoint that serves the stored
+   * image (e.g. the teacher's grading route). When absent, the component uses
+   * the student's own endpoint built from `labId`. A no-op for every other type.
+   */
+  imageUrl?: string;
 }
 
 export type AnswerComponent = ComponentType<AnswerComponentProps>;

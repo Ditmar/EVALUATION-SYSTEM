@@ -7,6 +7,9 @@ import { AwsClient } from "aws4fetch";
  * firmadas de corta duración.
  *
  * Variables: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET.
+ * Opcional: R2_PUBLIC_URL (dominio del CDN de Cloudflare conectado al bucket,
+ * p. ej. https://cdn.midominio.com). Si está definida, `getReadUrl` devuelve
+ * URLs del CDN en lugar de URLs firmadas.
  */
 
 interface R2Config {
@@ -60,27 +63,28 @@ export async function putObject(key: string, body: Uint8Array, contentType: stri
   });
   headers["content-length"] = String(body.byteLength);
 
-  const { status, text } = await httpsPut(signed.url, headers, body);
+  const { status, text } = await httpsRequest("PUT", signed.url, headers, body);
   if (status < 200 || status >= 300) {
     throw new Error(`R2 PUT falló (${status}): ${text}`);
   }
 }
 
-function httpsPut(
+function httpsRequest(
+  method: "PUT" | "DELETE",
   url: string,
   headers: Record<string, string>,
-  body: Uint8Array
+  body?: Uint8Array
 ): Promise<{ status: number; text: string }> {
   return new Promise((resolve, reject) => {
-    const req = https.request(url, { method: "PUT", headers, timeout: 30_000 }, (res) => {
+    const req = https.request(url, { method, headers, timeout: 30_000 }, (res) => {
       const chunks: Buffer[] = [];
       res.on("data", (c: Buffer) => chunks.push(c));
       res.on("end", () => resolve({ status: res.statusCode ?? 0, text: Buffer.concat(chunks).toString("utf8") }));
       res.on("error", reject);
     });
-    req.on("timeout", () => req.destroy(new Error("R2 PUT: tiempo de espera agotado")));
+    req.on("timeout", () => req.destroy(new Error(`R2 ${method}: tiempo de espera agotado`)));
     req.on("error", reject);
-    req.end(Buffer.from(body.buffer, body.byteOffset, body.byteLength));
+    req.end(body ? Buffer.from(body.buffer, body.byteOffset, body.byteLength) : undefined);
   });
 }
 
@@ -92,4 +96,31 @@ export async function presignGetUrl(key: string, expiresInSeconds = 3600): Promi
   url.searchParams.set("X-Amz-Expires", String(expiresInSeconds));
   const signed = await config.client.sign(new Request(url, { method: "GET" }), { aws: { signQuery: true } });
   return signed.url;
+}
+
+export async function deleteObject(key: string): Promise<void> {
+  const config = getConfig();
+  if (!config) throw new Error("R2 no está configurado.");
+  const signed = await config.client.sign(objectUrl(config, key), { method: "DELETE" });
+  const headers: Record<string, string> = {};
+  signed.headers.forEach((value, name) => {
+    headers[name] = value;
+  });
+  const { status, text } = await httpsRequest("DELETE", signed.url, headers);
+  // 404 = ya no existe: para un borrado eso también es éxito.
+  if ((status < 200 || status >= 300) && status !== 404) {
+    throw new Error(`R2 DELETE falló (${status}): ${text}`);
+  }
+}
+
+/**
+ * URL para que el navegador lea un objeto: la del CDN (R2_PUBLIC_URL) si está
+ * configurado, si no una URL firmada de corta duración contra el bucket privado.
+ */
+export async function getReadUrl(key: string, expiresInSeconds = 600): Promise<string> {
+  const publicBase = process.env.R2_PUBLIC_URL?.trim().replace(/\/+$/, "");
+  if (publicBase) {
+    return `${publicBase}/${key.split("/").map(encodeURIComponent).join("/")}`;
+  }
+  return presignGetUrl(key, expiresInSeconds);
 }

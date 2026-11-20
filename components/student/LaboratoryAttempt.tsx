@@ -74,6 +74,8 @@ export function LaboratoryAttempt({ labId }: { labId: string }) {
 
   function handleAnswerChange(questionId: string, value: AnswerValue) {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
+    // Image answers are persisted by their own upload endpoint; only mirror them locally.
+    if (laboratory?.questions.find((q) => q.id === questionId)?.type === "image") return;
     clearTimeout(debounceTimers.current[questionId]);
     debounceTimers.current[questionId] = setTimeout(() => saveAnswer(questionId, value), AUTOSAVE_DEBOUNCE_MS);
   }
