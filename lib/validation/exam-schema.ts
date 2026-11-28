@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeIdeConfig, type IdeConfigInput } from "@/lib/code-runner/ide-config";
 
 export const OptionSchema = z.object({
   id: z.string().min(1),
@@ -43,13 +44,65 @@ export const CodeQuestionSchema = BaseQuestionSchema.extend({
   enableAiEvaluation: z.boolean().default(false),
 });
 
+/**
+ * Mini IDE runnable on Piston (docs/specs/piston-code-runner.md). Field
+ * rules (defaults, entry, file names) live in `normalizeIdeConfig`, shared
+ * with the laboratory `{{answer type="ide"}}` placeholder.
+ */
+export const IdeQuestionSchema = BaseQuestionSchema.extend({
+  type: z.literal("ide"),
+  language: z.string().trim().min(1, "El lenguaje es requerido"),
+  mode: z.enum(["single", "multi"]).optional(),
+  entry: z.string().trim().min(1).optional(),
+  files: z
+    .array(z.object({ name: z.string().trim().min(1), content: z.string(), readonly: z.boolean().optional() }))
+    .optional(),
+  allowNewFiles: z.boolean().optional(),
+  maxFiles: z.number().int().optional(),
+  stdin: z.string().optional(),
+  stdinEditable: z.boolean().optional(),
+  run: z.boolean().optional(),
+  runLimit: z.number().int().optional(),
+  autocomplete: z.boolean().optional(),
+  height: z.number().int().optional(),
+  expectedSolution: z.string().optional(),
+  rubric: z.string().optional(),
+  enableAiEvaluation: z.boolean().default(false),
+});
+
+export type IdeQuestionInput = z.infer<typeof IdeQuestionSchema>;
+
+export function ideConfigInputOf(q: IdeQuestionInput): IdeConfigInput {
+  return {
+    language: q.language,
+    mode: q.mode,
+    entry: q.entry,
+    files: q.files,
+    allowNewFiles: q.allowNewFiles,
+    maxFiles: q.maxFiles,
+    stdin: q.stdin,
+    stdinEditable: q.stdinEditable,
+    run: q.run,
+    runLimit: q.runLimit,
+    autocomplete: q.autocomplete,
+    height: q.height,
+  };
+}
+
 export const QuestionSchema = z
   .discriminatedUnion("type", [
     SingleChoiceQuestionSchema,
     MultipleChoiceQuestionSchema,
     CodeQuestionSchema,
+    IdeQuestionSchema,
   ])
   .superRefine((q, ctx) => {
+    if (q.type === "ide") {
+      const result = normalizeIdeConfig(q.id, ideConfigInputOf(q));
+      if (!result.ok) {
+        for (const message of result.errors) ctx.addIssue({ code: z.ZodIssueCode.custom, message, path: ["files"] });
+      }
+    }
     if (q.type === "single_choice") {
       if (!q.options.some((o) => o.id === q.correctAnswer)) {
         ctx.addIssue({

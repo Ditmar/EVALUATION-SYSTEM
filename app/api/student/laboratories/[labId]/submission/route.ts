@@ -7,6 +7,7 @@ import { toStudentLaboratory } from "@/lib/laboratory/strip-answer-key";
 import { finalizeSubmission } from "@/lib/laboratory/submission";
 import { getLatestGithubAttemptsBySubmission } from "@/lib/laboratory/github-attempts";
 import type { AnswersMap } from "@/lib/laboratory/types";
+import { countRunsByQuestion } from "@/lib/code-runner/run-service";
 
 async function requireEnrolledPublishedLab(labId: string, studentId: string) {
   const laboratory = await prisma.laboratory.findFirst({ where: { id: labId, status: "PUBLISHED" } });
@@ -58,6 +59,9 @@ export async function GET(request: NextRequest, { params }: { params: { labId: s
   // without a second round-trip — only populated for github-pr questions.
   const latestAttempts = await getLatestGithubAttemptsBySubmission(submission.id);
   const githubAttempts = Object.fromEntries(latestAttempts.entries());
+  const ideRunCounts = parsed.laboratory.questions.some((q) => q.type === "ide")
+    ? await countRunsByQuestion({ submissionId: submission.id })
+    : {};
 
   return NextResponse.json({
     laboratory: toStudentLaboratory(parsed.laboratory),
@@ -66,6 +70,7 @@ export async function GET(request: NextRequest, { params }: { params: { labId: s
     answers: submission.answers,
     totalScore: submission.totalScore,
     githubAttempts,
+    ideRunCounts,
   });
 }
 

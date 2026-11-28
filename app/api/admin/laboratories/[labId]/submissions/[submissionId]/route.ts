@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireLaboratoryAccess } from "@/lib/auth/require-admin";
 import { parseLaboratory } from "@/lib/laboratory/parse-laboratory";
+import { summarizeRuns } from "@/lib/code-runner/run-service";
 
 export async function GET(request: NextRequest, { params }: { params: { labId: string; submissionId: string } }) {
   const auth = await requireLaboratoryAccess(request, params.labId);
@@ -26,5 +27,13 @@ export async function GET(request: NextRequest, { params }: { params: { labId: s
     return NextResponse.json({ error: "No se pudo interpretar el laboratorio de esta entrega." }, { status: 500 });
   }
 
-  return NextResponse.json({ submission, definition: parsed.laboratory });
+  const ideRunSummaries = Object.fromEntries(
+    await Promise.all(
+      parsed.laboratory.questions
+        .filter((q) => q.type === "ide")
+        .map(async (q) => [q.id, await summarizeRuns({ submissionId: submission.id }, q.id)] as const)
+    )
+  );
+
+  return NextResponse.json({ submission, definition: parsed.laboratory, ideRunSummaries });
 }

@@ -43,6 +43,7 @@ export function LaboratoryPreview({ laboratory, warnings = [] }: { laboratory: L
           answers={{}}
           repositories={laboratory.repositories}
           disabled
+          ideRunEndpoint="/api/admin/code-runner/run"
         />
       </div>
 

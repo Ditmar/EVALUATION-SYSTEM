@@ -4,26 +4,33 @@ import { QuestionStatement } from "@/components/QuestionStatement";
 import { SingleChoiceQuestion } from "@/components/student/SingleChoiceQuestion";
 import { MultipleChoiceQuestion } from "@/components/student/MultipleChoiceQuestion";
 import { CodeQuestion } from "@/components/student/CodeQuestion";
+import { IdeQuestion } from "@/components/student/IdeQuestion";
+import type { IdeAnswerValue } from "@/lib/code-runner/types";
 
 export interface StudentQuestion {
   questionId: string;
-  type: "SINGLE_CHOICE" | "MULTIPLE_CHOICE" | "CODE";
+  type: "SINGLE_CHOICE" | "MULTIPLE_CHOICE" | "CODE" | "CODE_IDE";
   statement: string;
   points: number;
   options: { id: string; text: string }[] | null;
   language: string | null;
+  /** CODE_IDE only (IdeConfig JSON). */
+  ideConfig?: unknown;
+  runsUsed?: number;
 }
 
 export type AnswerValue =
   | { selectedOption: string | null }
   | { selectedOptions: string[] }
-  | { codeAnswer: string };
+  | { codeAnswer: string }
+  | { codeFiles: IdeAnswerValue };
 
 function isAnswered(value: AnswerValue | undefined): boolean {
   if (!value) return false;
   if ("selectedOption" in value) return Boolean(value.selectedOption);
   if ("selectedOptions" in value) return value.selectedOptions.length > 0;
   if ("codeAnswer" in value) return value.codeAnswer.trim().length > 0;
+  if ("codeFiles" in value) return value.codeFiles.files.some((f) => f.content.trim().length > 0);
   return false;
 }
 
@@ -32,11 +39,14 @@ export function QuestionList({
   answers,
   onChange,
   disabled,
+  runEndpoint,
 }: {
   questions: StudentQuestion[];
   answers: Record<string, AnswerValue>;
   onChange: (questionId: string, value: AnswerValue) => void;
   disabled?: boolean;
+  /** POST endpoint for CODE_IDE runs (the exam's `/run` route). */
+  runEndpoint?: string;
 }) {
   return (
     <div className="space-y-6">
@@ -79,6 +89,18 @@ export function QuestionList({
                 value={answer && "codeAnswer" in answer ? answer.codeAnswer : ""}
                 onChange={(value) => onChange(q.questionId, { codeAnswer: value })}
                 disabled={disabled}
+              />
+            )}
+
+            {q.type === "CODE_IDE" && (
+              <IdeQuestion
+                questionId={q.questionId}
+                ideConfig={q.ideConfig}
+                value={answer && "codeFiles" in answer ? answer.codeFiles : undefined}
+                onChange={(value) => onChange(q.questionId, { codeFiles: value })}
+                disabled={disabled}
+                runEndpoint={runEndpoint}
+                runsUsed={q.runsUsed}
               />
             )}
           </Card>

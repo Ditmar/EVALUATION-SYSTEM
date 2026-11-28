@@ -4,6 +4,8 @@ import type { Exam, ExamAttempt, Answer, Question } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { checkPublicRateLimit } from "@/lib/rate-limit-guard";
 import { getStudentSessionFromRequest } from "@/lib/auth/student-session";
+import { formatFilesAsText } from "@/lib/code-runner/files";
+import { isIdeAnswerValue } from "@/lib/code-runner/types";
 
 const ResultLookupSchema = z.object({
   ci: z.string().trim().min(3, "El carnet de identidad no es válido"),
@@ -11,6 +13,13 @@ const ResultLookupSchema = z.object({
 });
 
 const NOT_FOUND_MESSAGE = "No se encontró un intento con esos datos para este examen.";
+
+/** CODE_IDE answers show every file (`// ===== Main.java =====` sections). */
+function codeAnswerText(answer: Answer | null): string | null {
+  if (!answer) return null;
+  const files = answer.codeFiles;
+  return isIdeAnswerValue(files) ? formatFilesAsText(files.files) : answer.codeAnswer ?? null;
+}
 
 function buildResultResponse(
   exam: Exam & { questions: Question[] },
@@ -23,7 +32,7 @@ function buildResultResponse(
   const answersByQuestionId = new Map(attempt.answers.map((a) => [a.questionId, a]));
 
   const isFullyGraded = exam.questions
-    .filter((q) => q.type === "CODE")
+    .filter((q) => q.type === "CODE" || q.type === "CODE_IDE")
     .every((q) => {
       const answer = answersByQuestionId.get(q.id);
       return !answer || answer.gradedAt !== null;
@@ -51,8 +60,8 @@ function buildResultResponse(
       correctAnswers: q.type === "MULTIPLE_CHOICE" ? q.correctAnswers : undefined,
       selectedOption: answer?.selectedOption ?? null,
       selectedOptions: answer?.selectedOptions ?? null,
-      codeAnswer: q.type === "CODE" ? answer?.codeAnswer ?? null : undefined,
-      teacherComment: q.type === "CODE" ? answer?.teacherComment ?? null : undefined,
+      codeAnswer: q.type === "CODE" || q.type === "CODE_IDE" ? codeAnswerText(answer) : undefined,
+      teacherComment: q.type === "CODE" || q.type === "CODE_IDE" ? answer?.teacherComment ?? null : undefined,
     };
   });
 
@@ -68,6 +77,7 @@ function buildResultResponse(
 
 /**
  * Session-based lookup for REGISTERED-mode students: the roster import never
+
  * collects a correo, so their ExamAttempt.correo is always empty and the
  * CI+correo form below can never match for them. A logged-in student instead
  * looks up their own attempt by ci from their session, no correo needed.

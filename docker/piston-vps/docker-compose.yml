@@ -1,0 +1,52 @@
+# Piston en un VPS propio, para cuando la app corre en una plataforma que no
+# permite contenedores privilegiados (Railway, Render, etc.). Ver
+# docs/deploy/railway-piston.md.
+#
+#   bash setup.sh          # todo en un paso (Docker, .env, lenguajes, prueba)
+#
+# o a mano:
+#   cp .env.example .env   # PISTON_DOMAIN y PISTON_AUTH_TOKEN
+#   docker compose up -d
+#   PISTON_URL=http://127.0.0.1:2000 node ../../scripts/piston-install.mjs
+services:
+  piston:
+    image: ghcr.io/engineer-man/piston
+    restart: unless-stopped
+    privileged: true
+    volumes:
+      - piston_packages:/piston/packages
+    tmpfs:
+      - /tmp:exec
+    environment:
+      PISTON_DISABLE_NETWORKING: "true"
+      PISTON_RUN_TIMEOUT: "15000"
+      PISTON_COMPILE_TIMEOUT: "15000"
+      PISTON_OUTPUT_MAX_SIZE: "65536"
+      PISTON_MAX_PROCESS_COUNT: "64"
+      PISTON_MAX_OPEN_FILES: "256"
+      PISTON_MAX_FILE_SIZE: "10000000"
+      PISTON_MAX_CONCURRENT_JOBS: ${PISTON_MAX_CONCURRENT_JOBS:-4}
+    # Solo localhost del VPS (para instalar paquetes por SSH). Internet entra por Caddy.
+    ports:
+      - "127.0.0.1:2000:2000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - piston
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PISTON_DOMAIN: ${PISTON_DOMAIN:?Defina PISTON_DOMAIN en .env}
+      PISTON_AUTH_TOKEN: ${PISTON_AUTH_TOKEN:?Defina PISTON_AUTH_TOKEN en .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  piston_packages:
+  caddy_data:
+  caddy_config:

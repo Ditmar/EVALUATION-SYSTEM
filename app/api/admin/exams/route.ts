@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireAdminSession } from "@/lib/auth/require-admin";
-import { ExamImportSchema } from "@/lib/validation/exam-schema";
+import type { Prisma } from "@prisma/client";
+import { ExamImportSchema, ideConfigInputOf } from "@/lib/validation/exam-schema";
+import { normalizeIdeConfig } from "@/lib/code-runner/ide-config";
+import type { IdeConfig } from "@/lib/code-runner/types";
 import { generatePublicToken } from "@/lib/tokens";
 
 export async function GET(request: NextRequest) {
@@ -80,6 +83,15 @@ export async function POST(request: NextRequest) {
 
   const { metadata, settings, questions } = parsed.data;
 
+  // Already validated by the schema's superRefine; normalized again here to get the stored shape.
+  const ideConfigs = new Map<string, IdeConfig>();
+  for (const q of questions) {
+    if (q.type !== "ide") continue;
+    const result = normalizeIdeConfig(q.id, ideConfigInputOf(q));
+    if (!result.ok) return NextResponse.json({ error: result.errors.join(" ") }, { status: 400 });
+    ideConfigs.set(q.id, result.config);
+  }
+
   const exam = await prisma.exam.create({
     data: {
       title: metadata.title,
@@ -105,14 +117,15 @@ export async function POST(request: NextRequest) {
       questions: {
         create: questions.map((q, index) => ({
           externalId: q.id,
-          type: q.type.toUpperCase() as "SINGLE_CHOICE" | "MULTIPLE_CHOICE" | "CODE",
+          type: q.type === "ide" ? ("CODE_IDE" as const) : (q.type.toUpperCase() as "SINGLE_CHOICE" | "MULTIPLE_CHOICE" | "CODE"),
           statement: q.statement,
           points: q.points,
           order: index,
           options: "options" in q ? q.options : undefined,
           correctAnswer: "correctAnswer" in q ? q.correctAnswer : undefined,
           correctAnswers: "correctAnswers" in q ? q.correctAnswers : undefined,
-          language: "language" in q ? q.language : undefined,
+          language: q.type === "ide" ? ideConfigs.get(q.id)!.language : "language" in q ? q.language : undefined,
+          ideConfig: q.type === "ide" ? (ideConfigs.get(q.id) as unknown as Prisma.InputJsonValue) : undefined,
           expectedSolution: "expectedSolution" in q ? q.expectedSolution : undefined,
           rubric: "rubric" in q ? q.rubric : undefined,
           enableAiEvaluation: "enableAiEvaluation" in q ? q.enableAiEvaluation : false,

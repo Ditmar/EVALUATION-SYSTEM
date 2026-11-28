@@ -1,5 +1,6 @@
 "use client";
 
+import { isIdeAnswerValue } from "@/lib/code-runner/types";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LaboratoryRenderer } from "@/components/laboratory/LaboratoryRenderer";
 import { AutosaveIndicator, type AutosaveState } from "@/components/laboratory/AutosaveIndicator";
@@ -21,6 +22,7 @@ function isAnswered(value: AnswerValue | undefined): boolean {
   if (value === undefined) return false;
   if (typeof value === "string") return value.trim().length > 0;
   if (Array.isArray(value)) return value.length > 0;
+  if (isIdeAnswerValue(value)) return value.files.some((f) => f.content.trim().length > 0);
   return true;
 }
 
@@ -35,6 +37,7 @@ export function LaboratoryAttempt({ labId }: { labId: string }) {
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [githubAttempts, setGithubAttempts] = useState<Record<string, GithubAttemptSummary>>({});
+  const [ideRunCounts, setIdeRunCounts] = useState<Record<string, number>>({});
 
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
@@ -51,6 +54,7 @@ export function LaboratoryAttempt({ labId }: { labId: string }) {
       setStatus(data.status);
       setTotalScore(data.totalScore);
       setGithubAttempts(data.githubAttempts ?? {});
+      setIdeRunCounts(data.ideRunCounts ?? {});
       setScreen(data.status === "IN_PROGRESS" ? "ready" : "submitted");
     });
   }, [labId]);
@@ -139,6 +143,7 @@ export function LaboratoryAttempt({ labId }: { labId: string }) {
           labId={labId}
           repositories={laboratory.repositories}
           githubAttempts={githubAttempts}
+          ideRunCounts={ideRunCounts}
         />
       </Card>
 

@@ -13,11 +13,15 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "tsx prisma/seed.ts",
+    "piston:install": "node scripts/piston-install.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
+    "@codemirror/commands": "^6.11.2",
+    "@codemirror/lang-java": "^6.0.2",
     "@codemirror/lang-javascript": "^6.2.2",
+    "@codemirror/lang-python": "^6.2.1",
     "@codemirror/legacy-modes": "^6.4.1",
     "@octokit/rest": "^22.0.1",
     "@prisma/client": "^5.20.0",

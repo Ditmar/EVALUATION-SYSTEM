@@ -7,6 +7,10 @@ import { QuestionStatement } from "@/components/QuestionStatement";
 import { CodeAnswerGrader } from "@/components/admin/CodeAnswerGrader";
 import { ActivityEventsList } from "@/components/admin/ActivityEventsList";
 import { ScreenCaptureGallery } from "@/components/admin/ScreenCaptureGallery";
+import { IdeRunSummary } from "@/components/admin/IdeRunSummary";
+import { IdeWorkspace } from "@/components/ide/IdeWorkspace";
+import { asIdeConfig } from "@/lib/code-runner/ide-config";
+import { isIdeAnswerValue } from "@/lib/code-runner/types";
 
 interface Option {
   id: string;
@@ -18,6 +22,7 @@ interface Answer {
   selectedOption: string | null;
   selectedOptions: string[] | null;
   codeAnswer: string | null;
+  codeFiles?: unknown;
   isCorrect: boolean | null;
   autoScore: number | null;
   manualScore: number | null;
@@ -27,7 +32,7 @@ interface Answer {
 
 interface Question {
   id: string;
-  type: "SINGLE_CHOICE" | "MULTIPLE_CHOICE" | "CODE";
+  type: "SINGLE_CHOICE" | "MULTIPLE_CHOICE" | "CODE" | "CODE_IDE";
   statement: string;
   points: number;
   options: Option[] | null;
@@ -38,6 +43,8 @@ interface Question {
   rubric: string | null;
   enableAiEvaluation: boolean;
   answer: Answer | null;
+  ideConfig?: unknown;
+  runSummary?: React.ComponentProps<typeof IdeRunSummary>["summary"];
 }
 
 interface ActivityEvent {
@@ -180,8 +187,9 @@ export function AttemptGradingView({
             </ul>
           )}
 
-          {q.type === "CODE" && (
+          {(q.type === "CODE" || q.type === "CODE_IDE") && (
             <CodeAnswerGrader
+              answerView={q.type === "CODE_IDE" ? <IdeGradingView question={q} /> : undefined}
               examId={examId}
               attemptId={attempt.id}
               questionId={q.id}
@@ -200,6 +208,26 @@ export function AttemptGradingView({
           )}
         </Card>
       ))}
+    </div>
+  );
+}
+
+/** CODE_IDE answer for the teacher: every file read-only, Run via the admin route, and the student's run history. */
+function IdeGradingView({ question }: { question: Question }) {
+  const config = asIdeConfig(question.ideConfig);
+  if (!config) return <p className="text-sm text-red-600">Configuración del IDE inválida.</p>;
+  const files = question.answer?.codeFiles;
+  return (
+    <div className="space-y-2">
+      <IdeWorkspace
+        config={config}
+        value={isIdeAnswerValue(files) ? files : undefined}
+        runEndpoint="/api/admin/code-runner/run"
+        runBody={{ questionId: question.id, config }}
+        disabled
+        allowRunWhenDisabled
+      />
+      <IdeRunSummary summary={question.runSummary} />
     </div>
   );
 }

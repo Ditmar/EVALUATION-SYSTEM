@@ -8,6 +8,10 @@ import { formatDiffForPrompt } from "@/lib/laboratory/evaluation/repository-cont
 import { getLatestGithubAttempt } from "@/lib/laboratory/github-attempts";
 import { getCompareDiff, parseRepositoryUrl } from "@/lib/github/github-service";
 import type { AnswersMap, GitHubPullRequestQuestion, LaboratoryDefinition } from "@/lib/laboratory/types";
+import { buildIdeAnswerTextForAi } from "@/lib/code-runner/ai-context";
+import { pickIdeConfig } from "@/lib/code-runner/ide-config";
+import { summarizeRuns } from "@/lib/code-runner/run-service";
+import { isIdeAnswerValue } from "@/lib/code-runner/types";
 
 const BodySchema = z.object({ questionId: z.string().min(1) });
 
@@ -75,6 +79,10 @@ export async function POST(request: NextRequest, { params }: { params: { labId: 
     let studentAnswerText: string;
     if (question.type === "github-pr") {
       studentAnswerText = await buildGithubAnswerText(parsed.laboratory, question, submission.id);
+    } else if (question.type === "ide") {
+      const value = ((submission.answers as AnswersMap | null) ?? {})[question.id];
+      const runs = await summarizeRuns({ submissionId: submission.id }, question.id);
+      studentAnswerText = buildIdeAnswerTextForAi(pickIdeConfig(question), isIdeAnswerValue(value) ? value : undefined, runs);
     } else {
       const answers = (submission.answers as AnswersMap | null) ?? {};
       const value = answers[question.id];

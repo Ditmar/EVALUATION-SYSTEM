@@ -26,5 +26,5 @@ export default function LaboratorySubmissionPage({ params }: { params: { labId: 
     );
   }
 
-  return <LaboratoryGradingView labId={params.labId} definition={data.definition} submission={data.submission} />;
+  return <LaboratoryGradingView labId={params.labId} definition={data.definition} submission={data.submission} ideRunSummaries={data.ideRunSummaries} />;
 }

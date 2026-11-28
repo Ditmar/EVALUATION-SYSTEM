@@ -80,6 +80,8 @@ export default function ExamAttemptPage({ params }: { params: { token: string } 
               initialAnswers[q.questionId] = { selectedOption: q.currentAnswer.selectedOption };
             } else if (q.type === "MULTIPLE_CHOICE") {
               initialAnswers[q.questionId] = { selectedOptions: q.currentAnswer.selectedOptions ?? [] };
+            } else if (q.type === "CODE_IDE") {
+              if (q.currentAnswer.codeFiles) initialAnswers[q.questionId] = { codeFiles: q.currentAnswer.codeFiles };
             } else {
               initialAnswers[q.questionId] = { codeAnswer: q.currentAnswer.codeAnswer ?? "" };
             }
@@ -256,6 +258,7 @@ export default function ExamAttemptPage({ params }: { params: { token: string } 
         if ("selectedOption" in a) return Boolean(a.selectedOption);
         if ("selectedOptions" in a) return a.selectedOptions.length > 0;
         if ("codeAnswer" in a) return a.codeAnswer.trim().length > 0;
+        if ("codeFiles" in a) return a.codeFiles.files.some((f) => f.content.trim().length > 0);
         return false;
       }).length,
     [questions, answers]
@@ -328,12 +331,12 @@ export default function ExamAttemptPage({ params }: { params: { token: string } 
           intervalMinutes={captureIntervalMinutes}
         >
           <div className="mx-auto max-w-4xl px-4 py-6">
-            <QuestionList questions={questions} answers={answers} onChange={handleAnswerChange} />
+            <QuestionList questions={questions} answers={answers} onChange={handleAnswerChange} runEndpoint={`/api/public/exams/${params.token}/run`} />
           </div>
         </ScreenCaptureGate>
       ) : (
         <div className="mx-auto max-w-4xl px-4 py-6">
-          <QuestionList questions={questions} answers={answers} onChange={handleAnswerChange} />
+          <QuestionList questions={questions} answers={answers} onChange={handleAnswerChange} runEndpoint={`/api/public/exams/${params.token}/run`} />
         </div>
       )}
 

@@ -2,11 +2,15 @@ import type { ExamImportInput } from "@/lib/validation/exam-schema";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { QuestionStatement } from "@/components/QuestionStatement";
+import { IdeWorkspace } from "@/components/ide/IdeWorkspace";
+import { normalizeIdeConfig } from "@/lib/code-runner/ide-config";
+import { ideConfigInputOf } from "@/lib/validation/exam-schema";
 
 const TYPE_LABEL: Record<string, string> = {
   single_choice: "Opción única",
   multiple_choice: "Opción múltiple",
   code: "Código",
+  ide: "IDE ejecutable",
 };
 
 export function ExamPreview({ exam }: { exam: ExamImportInput }) {
@@ -58,9 +62,28 @@ export function ExamPreview({ exam }: { exam: ExamImportInput }) {
               <span className="text-slate-500">{q.points} pts</span>
             </div>
             <QuestionStatement statement={q.statement} className="space-y-2" />
+            {q.type === "ide" && <IdePreview questionId={q.id} input={ideConfigInputOf(q)} />}
           </li>
         ))}
       </ul>
     </Card>
+  );
+}
+
+/** Teacher preview of an `ide` question: starter files, runnable through the admin route. */
+function IdePreview({ questionId, input }: { questionId: string; input: ReturnType<typeof ideConfigInputOf> }) {
+  const result = normalizeIdeConfig(questionId, input);
+  if (!result.ok) return <p className="mt-2 text-xs text-red-600">{result.errors.join(" ")}</p>;
+  return (
+    <div className="mt-3">
+      <IdeWorkspace
+        config={result.config}
+        value={undefined}
+        runEndpoint="/api/admin/code-runner/run"
+        runBody={{ questionId, config: result.config }}
+        disabled
+        allowRunWhenDisabled
+      />
+    </div>
   );
 }

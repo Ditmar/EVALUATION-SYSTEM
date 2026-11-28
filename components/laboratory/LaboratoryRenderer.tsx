@@ -16,6 +16,10 @@ export interface LaboratoryRendererProps {
   labId?: string;
   repositories?: RepositoryResource[];
   githubAttempts?: Record<string, GithubAttemptSummary>;
+  /** `ide` questions: runs already used per question id. */
+  ideRunCounts?: Record<string, number>;
+  /** `ide` questions in teacher previews: the admin run endpoint. */
+  ideRunEndpoint?: string;
 }
 
 interface RenderContext {
@@ -26,9 +30,11 @@ interface RenderContext {
   disabled?: boolean;
   labId?: string;
   githubAttempts?: Record<string, GithubAttemptSummary>;
+  ideRunCounts?: Record<string, number>;
+  ideRunEndpoint?: string;
 }
 
-const BLOCK_LEVEL_ANSWER_TYPES = new Set<QuestionDefinition["type"]>(["github-pr", "textarea", "code", "image"]);
+const BLOCK_LEVEL_ANSWER_TYPES = new Set<QuestionDefinition["type"]>(["github-pr", "textarea", "code", "image", "ide"]);
 
 const HEADING_CLASSES: Record<number, string> = {
   1: "text-2xl font-semibold text-slate-900",
@@ -61,6 +67,8 @@ export function LaboratoryRenderer({
   labId,
   repositories = [],
   githubAttempts,
+  ideRunCounts,
+  ideRunEndpoint,
 }: LaboratoryRendererProps) {
   const ctx: RenderContext = {
     questionsById: new Map(questions.map((q) => [q.id, q])),
@@ -70,6 +78,8 @@ export function LaboratoryRenderer({
     disabled,
     labId,
     githubAttempts,
+    ideRunCounts,
+    ideRunEndpoint,
   };
 
   return <div className="laboratory-content space-y-4">{renderNodes(content, ctx)}</div>;
@@ -240,6 +250,8 @@ function renderAnswer(questionId: string, ctx: RenderContext, key: number): Reac
       labId={ctx.labId}
       githubAttempt={ctx.githubAttempts?.[questionId]}
       repository={question.type === "github-pr" ? ctx.repositoriesById.get(question.source) : undefined}
+      ideRunsUsed={ctx.ideRunCounts?.[questionId]}
+      ideRunEndpoint={ctx.ideRunEndpoint}
     />
   );
 

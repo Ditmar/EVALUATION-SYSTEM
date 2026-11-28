@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdminSession } from "@/lib/auth/require-admin";
 import { getAiProvider } from "@/lib/ai/factory";
+import { asIdeConfig } from "@/lib/code-runner/ide-config";
+import { buildIdeAnswerTextForAi } from "@/lib/code-runner/ai-context";
+import { summarizeRuns } from "@/lib/code-runner/run-service";
+import { isIdeAnswerValue } from "@/lib/code-runner/types";
 
 export async function POST(
   request: NextRequest,
@@ -32,7 +36,7 @@ export async function POST(
     return NextResponse.json({ error: "Respuesta no encontrada." }, { status: 404 });
   }
 
-  if (answer.question.type !== "CODE") {
+  if (answer.question.type !== "CODE" && answer.question.type !== "CODE_IDE") {
     return NextResponse.json({ error: "Sólo las preguntas de código admiten evaluación con IA." }, { status: 400 });
   }
 
@@ -43,6 +47,13 @@ export async function POST(
     );
   }
 
+  let studentCode = answer.codeAnswer ?? "";
+  const ideConfig = answer.question.type === "CODE_IDE" ? asIdeConfig(answer.question.ideConfig) : null;
+  if (ideConfig) {
+    const runs = await summarizeRuns({ attemptId: answer.attemptId }, answer.questionId);
+    studentCode = buildIdeAnswerTextForAi(ideConfig, isIdeAnswerValue(answer.codeFiles) ? answer.codeFiles : undefined, runs);
+  }
+
   try {
     const provider = getAiProvider();
     const result = await provider.evaluateCodeAnswer({
@@ -50,7 +61,7 @@ export async function POST(
       language: answer.question.language ?? "javascript",
       expectedSolution: answer.question.expectedSolution,
       rubric: answer.question.rubric,
-      studentCode: answer.codeAnswer ?? "",
+      studentCode,
       maxPoints: answer.question.points,
     });
 

@@ -134,3 +134,37 @@ describe("ExamImportSchema", () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe('ExamImportSchema — type "ide"', () => {
+  const ideQuestion = {
+    id: "q-ide",
+    type: "ide",
+    statement: "Implemente la clase Inventario.",
+    points: 15,
+    language: "java",
+    mode: "multi",
+    files: [
+      { name: "Main.java", content: "public class Main { public static void main(String[] a) {} }" },
+      { name: "Producto.java", content: "public record Producto(String n) {}", readonly: true },
+    ],
+    runLimit: 30,
+  };
+
+  it("accepts a valid ide question", () => {
+    const result = ExamImportSchema.safeParse({ ...validExam, questions: [ideQuestion] });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects an unsupported language", () => {
+    const result = ExamImportSchema.safeParse({ ...validExam, questions: [{ ...ideQuestion, language: "cobol" }] });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects starter files without the entry file", () => {
+    const result = ExamImportSchema.safeParse({
+      ...validExam,
+      questions: [{ ...ideQuestion, files: [{ name: "Otro.java", content: "" }] }],
+    });
+    expect(result.success).toBe(false);
+  });
+});

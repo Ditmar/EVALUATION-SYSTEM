@@ -5,6 +5,9 @@ import { AnswerSubmitSchema } from "@/lib/validation/activity-schema";
 import { gradeMultipleChoice, gradeSingleChoice } from "@/lib/grading/auto-grade";
 import { remainingMs } from "@/lib/time";
 import { checkRateLimitByKey } from "@/lib/rate-limit-guard";
+import type { Prisma } from "@prisma/client";
+import { asIdeConfig } from "@/lib/code-runner/ide-config";
+import { entryContent, resolveRunFiles } from "@/lib/code-runner/files";
 
 export async function PUT(
   request: NextRequest,
@@ -49,6 +52,7 @@ export async function PUT(
   let selectedOption: string | undefined;
   let selectedOptions: string[] | undefined;
   let codeAnswer: string | undefined;
+  let codeFiles: Prisma.InputJsonValue | undefined;
   let isCorrect: boolean | null = null;
   let autoScore: number | null = null;
 
@@ -74,6 +78,21 @@ export async function PUT(
     }
   } else if ("codeAnswer" in parsed.data) {
     codeAnswer = parsed.data.codeAnswer;
+  } else if ("codeFiles" in parsed.data) {
+    const config = question.type === "CODE_IDE" ? asIdeConfig(question.ideConfig) : null;
+    if (!config) {
+      return NextResponse.json({ error: "Respuesta inválida." }, { status: 400 });
+    }
+    // Same file rules as a run, so what's saved is always runnable/gradable.
+    const resolved = resolveRunFiles(config, parsed.data.codeFiles.files);
+    if (!resolved.ok) {
+      return NextResponse.json({ error: resolved.error }, { status: 400 });
+    }
+    const editable = resolved.files.filter((f) => !f.readonly).map(({ name, content }) => ({ name, content }));
+    const value = { files: editable, ...(parsed.data.codeFiles.stdin !== undefined ? { stdin: parsed.data.codeFiles.stdin } : {}) };
+    codeFiles = value;
+    // Legacy column: the entry file, so CSV export and older views keep working.
+    codeAnswer = entryContent(config, value);
   }
 
   const answer = await prisma.answer.upsert({
@@ -84,6 +103,7 @@ export async function PUT(
       selectedOption,
       selectedOptions,
       codeAnswer,
+      codeFiles,
       isCorrect,
       autoScore,
     },
@@ -91,6 +111,7 @@ export async function PUT(
       selectedOption,
       selectedOptions,
       codeAnswer,
+      codeFiles,
       isCorrect,
       autoScore,
     },

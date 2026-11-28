@@ -6,7 +6,13 @@ import { requireStudentSession } from "@/lib/auth/require-student";
 import { mergeAnswer } from "@/lib/laboratory/submission";
 import type { AnswersMap, AnswerValue } from "@/lib/laboratory/types";
 
-const AnswerValueSchema = z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]);
+// `ide` answers: editable files + stdin. Names/sizes are re-validated against
+// the question when the code runs; here we only bound the payload.
+const IdeAnswerSchema = z.object({
+  files: z.array(z.object({ name: z.string().min(1).max(64), content: z.string().max(256 * 1024) })).max(20),
+  stdin: z.string().max(64 * 1024).optional(),
+});
+const AnswerValueSchema = z.union([z.string(), z.number(), z.boolean(), z.array(z.string()), IdeAnswerSchema]);
 const BodySchema = z.object({ questionId: z.string().min(1), value: AnswerValueSchema });
 
 /**

@@ -5,6 +5,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { convertLatexDelimiters } from "./convert-latex-delimiters";
 import { extractRubrics } from "./extract-rubrics";
+import { extractStarterFiles } from "./extract-files";
 import { extractRepositories } from "./extract-repositories";
 import { parsePlaceholder, parsePlaceholderAttributes } from "./parse-placeholder";
 import { checkPointsTotal, validateRepositorySources, validateRubricReferences } from "./validation";
@@ -170,7 +171,12 @@ export function parseLaboratory(markdownSource: string): LaboratoryParseResult {
   }
   const { metadata } = metadataResult;
 
-  const { source: afterRubrics, rubrics } = extractRubrics(content);
+  // Starter files first: their code may contain `{{`/`}}` the other extractors must never see.
+  const { source: afterFiles, declarations: starterFiles, errors: fileErrors } = extractStarterFiles(content);
+  errors.push(...fileErrors);
+  const starterFilesById = new Map(starterFiles.map((d) => [d.for, d.files]));
+
+  const { source: afterRubrics, rubrics } = extractRubrics(afterFiles);
   const { source: body, repositories, errors: repositoryErrors } = extractRepositories(afterRubrics);
   errors.push(...repositoryErrors);
 
@@ -191,11 +197,21 @@ export function parseLaboratory(markdownSource: string): LaboratoryParseResult {
   const questions: QuestionDefinition[] = [];
   for (const id of ctx.order) {
     const attrs = ctx.rawPlaceholders.get(id)!;
-    const result = parsePlaceholder(attrs);
+    const result = parsePlaceholder(attrs, { starterFiles: starterFilesById.get(id) });
     if ("errors" in result) {
       errors.push(...result.errors);
     } else {
       questions.push(result.question);
+      for (const message of result.warnings ?? []) warnings.push({ message });
+    }
+  }
+
+  for (const declaration of starterFiles) {
+    const target = questions.find((q) => q.id === declaration.for);
+    if (!target && !ctx.rawPlaceholders.has(declaration.for)) {
+      errors.push({ questionId: declaration.for, message: `{{files for="${declaration.for}"}} apunta a una pregunta que no existe.` });
+    } else if (target && target.type !== "ide") {
+      errors.push({ questionId: declaration.for, message: `{{files for="${declaration.for}"}} solo aplica a preguntas type="ide" (la pregunta es type="${target.type}").` });
     }
   }
 

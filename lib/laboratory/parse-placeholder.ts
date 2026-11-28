@@ -1,3 +1,5 @@
+import type { IdeFile } from "@/lib/code-runner/types";
+import { normalizeIdeConfig } from "@/lib/code-runner/ide-config";
 import { DEFAULT_IMAGE_MAX_SIZE_MB, IMAGE_MAX_SIZE_CEILING_MB, normalizeImageFormat } from "./image-upload";
 import {
   EVALUATOR_KINDS,
@@ -40,7 +42,14 @@ function parseNumberAttr(value: string | undefined): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-export type PlaceholderParseResult = { question: QuestionDefinition } | { errors: LaboratoryParseError[] };
+export type PlaceholderParseResult =
+  | { question: QuestionDefinition; warnings?: string[] }
+  | { errors: LaboratoryParseError[] };
+
+export interface PlaceholderParseOptions {
+  /** Starter files from a `{{files for="<id>"}}` block — only meaningful for `type="ide"`. */
+  starterFiles?: IdeFile[];
+}
 
 /**
  * Turns one `{{answer ...}}` placeholder's raw string attributes into a typed
@@ -48,7 +57,7 @@ export type PlaceholderParseResult = { question: QuestionDefinition } | { errors
  * descriptive errors instead of throwing so the caller can report every
  * problem in a document at once rather than stopping at the first one.
  */
-export function parsePlaceholder(attrs: Record<string, string>): PlaceholderParseResult {
+export function parsePlaceholder(attrs: Record<string, string>, options: PlaceholderParseOptions = {}): PlaceholderParseResult {
   const id = attrs.id?.trim();
   if (!id) {
     return { errors: [{ message: 'Se encontró un placeholder "answer" sin atributo "id" obligatorio.' }] };
@@ -213,6 +222,50 @@ export function parsePlaceholder(attrs: Record<string, string>): PlaceholderPars
 
       if (errors.length > 0) return { errors };
       return { question: { ...base, type, maxSizeMb, formats, evaluator: "manual" } };
+    }
+
+    case "ide": {
+      if (evaluatorExplicit === "automatic") {
+        return {
+          errors: [
+            {
+              questionId: id,
+              message: `Question "${id}" uses type="ide", which does not support evaluator="automatic" yet (use "manual" or "ai").`,
+            },
+          ],
+        };
+      }
+      const numberErrors: LaboratoryParseError[] = [];
+      const intAttr = (name: string): number | undefined => {
+        if (attrs[name] === undefined) return undefined;
+        const n = parseNumberAttr(attrs[name]);
+        if (n === undefined) numberErrors.push({ questionId: id, message: `Question "${id}" tiene ${name}="${attrs[name]}" no numérico.` });
+        return n;
+      };
+      const optionalBool = (name: string): boolean | undefined =>
+        attrs[name] === undefined ? undefined : parseBooleanAttr(attrs[name], false);
+
+      const input = {
+        language: attrs.language,
+        mode: attrs.mode,
+        entry: attrs.entry,
+        files: options.starterFiles,
+        allowNewFiles: optionalBool("allow-new-files"),
+        maxFiles: intAttr("max-files"),
+        // Attributes are single-line in practice; a literal `\n` in stdin="..." means a newline.
+        stdin: attrs.stdin?.replace(/\\n/g, "\n"),
+        stdinEditable: optionalBool("stdin-editable"),
+        run: optionalBool("run"),
+        runLimit: intAttr("run-limit"),
+        autocomplete: optionalBool("autocomplete"),
+        height: intAttr("height"),
+      };
+      if (numberErrors.length > 0) return { errors: numberErrors };
+
+      const result = normalizeIdeConfig(id, input);
+      if (!result.ok) return { errors: result.errors.map((message) => ({ questionId: id, message })) };
+      const evaluator: "manual" | "ai" = evaluatorExplicit === "ai" ? "ai" : "manual";
+      return { question: { ...base, type, ...result.config, evaluator }, warnings: result.warnings };
     }
   }
 }

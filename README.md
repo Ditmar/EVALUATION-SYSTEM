@@ -72,6 +72,22 @@ npm run prisma:seed                # crea el docente inicial
 npm run dev                        # http://localhost:3000
 ```
 
+## Ejecución de código (preguntas `ide`)
+
+Las preguntas `type="ide"` (en laboratorios y exámenes) traen un mini IDE con
+botón **Run** y consola. El código corre en [Piston](https://github.com/engineer-man/piston),
+que va como servicio `piston` en `docker-compose.yml`. Los lenguajes se instalan
+una sola vez (son varios cientos de MB):
+
+```bash
+docker compose up -d piston
+npm run piston:install      # Python 3.12, Java 15, TypeScript 5.0
+```
+
+- Diseño y decisiones: [`docs/specs/piston-code-runner.md`](docs/specs/piston-code-runner.md).
+- Cómo escribir preguntas `ide` y el bloque `{{files}}`: [`lib/laboratory/laboratory-spec.md`](lib/laboratory/laboratory-spec.md); ejemplo en [`examples/laboratory-ide-sample.md`](examples/laboratory-ide-sample.md).
+- Despliegue en Railway (Piston no puede correr ahí, va en un VPS): [`docs/deploy/railway-piston.md`](docs/deploy/railway-piston.md).
+
 ## Comandos útiles
 
 | Comando | Descripción |
@@ -179,7 +195,8 @@ Este mismo JSON está disponible en [`examples/exam-sample.json`](examples/exam-
 **`questions[]`**: cada una necesita `id` (único dentro del examen), `type`, `statement`, `points` (> 0).
 - `single_choice`: `options` (≥2, `{id, text}`), `correctAnswer` (debe existir en `options`).
 - `multiple_choice`: `options` (≥2), `correctAnswers` (array, todos deben existir en `options`). La calificación es **todo o nada**: sólo se otorga el puntaje completo si el conjunto seleccionado coincide exactamente con el correcto — no hay puntaje parcial en este MVP.
-- `code`: `language` (`"javascript"` | `"typescript"` | `"java"`), `expectedSolution` (opcional, sólo referencia para el docente), `rubric` (opcional), `enableAiEvaluation` (booleano). Las preguntas de código **nunca se ejecutan ni se autocalifican**: quedan pendientes de revisión manual, con evaluación por IA opcional como sugerencia.
+- `code`: `language` (`"javascript"` | `"typescript"` | `"java"`), `expectedSolution` (opcional, sólo referencia para el docente), `rubric` (opcional), `enableAiEvaluation` (booleano). Las preguntas `code` **nunca se ejecutan ni se autocalifican**: quedan pendientes de revisión manual, con evaluación por IA opcional como sugerencia.
+- `ide`: IDE ejecutable en Piston. `language` (`"python"` | `"java"` | `"typescript"`), y opcionales `mode` (`"single"` | `"multi"`), `entry`, `files` (`[{name, content, readonly?}]`), `allowNewFiles`, `maxFiles`, `stdin`, `stdinEditable`, `run`, `runLimit`, `autocomplete`, `height`, más `expectedSolution`, `rubric` y `enableAiEvaluation` como en `code`. Se califica igual que `code` (manual, con IA opcional que además ve las ejecuciones del estudiante). Detalle en [`docs/specs/piston-code-runner.md`](docs/specs/piston-code-runner.md).
 
 ## Evaluación y calificación
 

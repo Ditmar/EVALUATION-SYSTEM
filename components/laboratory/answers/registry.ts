@@ -9,6 +9,7 @@ import { SelectAnswer } from "./SelectAnswer";
 import { CodeAnswer } from "./CodeAnswer";
 import { GitHubPrAnswer } from "./GitHubPrAnswer";
 import { ImageAnswer } from "./ImageAnswer";
+import { IdeAnswer } from "./IdeAnswer";
 import type { AnswerComponent } from "./types";
 
 /**
@@ -27,4 +28,5 @@ export const answerRegistry: Record<QuestionType, AnswerComponent> = {
   code: CodeAnswer,
   "github-pr": GitHubPrAnswer,
   image: ImageAnswer,
+  ide: IdeAnswer,
 };

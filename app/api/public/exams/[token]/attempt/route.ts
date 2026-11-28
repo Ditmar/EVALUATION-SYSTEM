@@ -4,6 +4,7 @@ import { getAttemptSessionFromRequest } from "@/lib/auth/attempt-session";
 import { remainingMs } from "@/lib/time";
 import { finalizeAttempt } from "@/lib/attempt-finalize";
 import { activePenaltyCount } from "@/lib/penalties";
+import { countRunsByQuestion } from "@/lib/code-runner/run-service";
 
 export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
   const exam = await prisma.exam.findUnique({
@@ -33,6 +34,9 @@ export async function GET(request: NextRequest, { params }: { params: { token: s
 
   const answers = await prisma.answer.findMany({ where: { attemptId: attempt.id } });
   const answersByQuestionId = new Map(answers.map((a) => [a.questionId, a]));
+  const ideRunCounts = exam.questions.some((q) => q.type === "CODE_IDE")
+    ? await countRunsByQuestion({ attemptId: attempt.id })
+    : {};
 
   // Never send correctAnswer/correctAnswers/expectedSolution/rubric to the
   // student before submission — only the fields needed to render the question.
@@ -45,11 +49,15 @@ export async function GET(request: NextRequest, { params }: { params: { token: s
       points: q.points,
       options: q.options,
       language: q.language,
+      // Starter files are part of the statement, not an answer key.
+      ideConfig: q.type === "CODE_IDE" ? q.ideConfig : null,
+      runsUsed: q.type === "CODE_IDE" ? ideRunCounts[q.id] ?? 0 : undefined,
       currentAnswer: answer
         ? {
             selectedOption: answer.selectedOption,
             selectedOptions: answer.selectedOptions,
             codeAnswer: answer.codeAnswer,
+            codeFiles: answer.codeFiles,
           }
         : null,
     };

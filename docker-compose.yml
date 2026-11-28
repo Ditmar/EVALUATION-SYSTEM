@@ -28,8 +28,37 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql://exam_app:exam_app_password@postgres:5432/exam_system
+      PISTON_URL: http://piston:2000
     ports:
       - "3000:3000"
 
+  # Sandbox de ejecución para las preguntas type="ide" (docs/specs/piston-code-runner.md).
+  # Los paquetes de lenguajes se instalan una vez con: npm run piston:install
+  piston:
+    image: ghcr.io/engineer-man/piston
+    restart: unless-stopped
+    # isolate (el sandbox de Piston) necesita cgroups: requiere modo privilegiado.
+    # Este contenedor no monta nada de la app ni recibe el .env.
+    privileged: true
+    volumes:
+      - piston_packages:/piston/packages
+    tmpfs:
+      - /tmp:exec
+    environment:
+      PISTON_DISABLE_NETWORKING: "true"
+      # Máximos permitidos por petición (la app pide menos; Java usa más por la compilación).
+      PISTON_RUN_TIMEOUT: "15000"
+      PISTON_COMPILE_TIMEOUT: "15000"
+      PISTON_OUTPUT_MAX_SIZE: "65536"
+      PISTON_MAX_PROCESS_COUNT: "64"
+      PISTON_MAX_OPEN_FILES: "256"
+      PISTON_MAX_FILE_SIZE: "10000000"
+      PISTON_MAX_CONCURRENT_JOBS: "4"
+    # Expuesto solo en localhost para desarrollo / npm run piston:install.
+    # En producción NO publicar este puerto: la app lo usa por la red interna.
+    ports:
+      - "127.0.0.1:2000:2000"
+
 volumes:
   pgdata:
+  piston_packages:

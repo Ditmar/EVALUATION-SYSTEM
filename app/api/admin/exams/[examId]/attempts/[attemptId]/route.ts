@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdminSession } from "@/lib/auth/require-admin";
+import { summarizeRuns } from "@/lib/code-runner/run-service";
 
 export async function GET(
   request: NextRequest,
@@ -30,10 +31,13 @@ export async function GET(
 
   const answersByQuestionId = new Map(attempt.answers.map((a) => [a.questionId, a]));
 
-  const questions = exam.questions.map((q) => ({
-    ...q,
-    answer: answersByQuestionId.get(q.id) ?? null,
-  }));
+  const questions = await Promise.all(
+    exam.questions.map(async (q) => ({
+      ...q,
+      answer: answersByQuestionId.get(q.id) ?? null,
+      runSummary: q.type === "CODE_IDE" ? await summarizeRuns({ attemptId: attempt.id }, q.id) : null,
+    }))
+  );
 
   return NextResponse.json({ attempt, questions });
 }

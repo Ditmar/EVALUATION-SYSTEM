@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { CodeEditor } from "@/components/CodeEditor";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -30,6 +30,8 @@ interface Props {
   teacherComment: string | null;
   enableAiEvaluation: boolean;
   aiEvaluations: AiEvaluation[];
+  /** Replaces the single-file code view (CODE_IDE: the read-only IDE + run history). */
+  answerView?: ReactNode;
   onGraded: (
     questionId: string,
     answer: { id: string; manualScore: number; teacherComment: string | null }
@@ -50,6 +52,7 @@ export function CodeAnswerGrader({
   teacherComment,
   enableAiEvaluation,
   aiEvaluations: initialAiEvaluations,
+  answerView,
   onGraded,
 }: Props) {
   const { showToast } = useToast();
@@ -116,7 +119,7 @@ export function CodeAnswerGrader({
     <div className="space-y-4">
       <div>
         <p className="mb-1 text-xs font-medium uppercase text-slate-500">Respuesta del estudiante</p>
-        <CodeEditor value={studentCode || "// (sin respuesta)"} language={language} readOnly height="220px" />
+        {answerView ?? <CodeEditor value={studentCode || "// (sin respuesta)"} language={language} readOnly height="220px" />}
       </div>
 
       {(expectedSolution || rubric) && (

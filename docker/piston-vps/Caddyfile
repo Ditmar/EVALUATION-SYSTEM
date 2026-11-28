@@ -1,0 +1,22 @@
+# HTTPS automático (Let's Encrypt) + token obligatorio delante de Piston.
+# Piston no tiene autenticación propia: sin este proxy, cualquiera podría usar
+# el servidor para ejecutar código.
+{$PISTON_DOMAIN} {
+	@authorized {
+		header Authorization "Bearer {$PISTON_AUTH_TOKEN}"
+		# Solo lo que la app usa. La instalación de paquetes (/api/v2/packages)
+		# se hace por SSH contra 127.0.0.1:2000, nunca desde internet.
+		path /api/v2/execute /api/v2/runtimes
+	}
+
+	handle @authorized {
+		request_body {
+			max_size 2MB
+		}
+		reverse_proxy piston:2000
+	}
+
+	handle {
+		respond "Unauthorized" 401
+	}
+}

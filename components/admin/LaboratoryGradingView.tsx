@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { IdeRunSummary } from "@/components/admin/IdeRunSummary";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
@@ -48,10 +49,13 @@ export function LaboratoryGradingView({
   labId,
   definition,
   submission: initialSubmission,
+  ideRunSummaries = {},
 }: {
   labId: string;
   definition: LaboratoryDefinition;
   submission: SubmissionData;
+  /** `ide` questions: the student's run history, keyed by question id. */
+  ideRunSummaries?: Record<string, React.ComponentProps<typeof IdeRunSummary>["summary"]>;
 }) {
   const { showToast } = useToast();
   const [submission, setSubmission] = useState(initialSubmission);
@@ -161,7 +165,13 @@ export function LaboratoryGradingView({
                       ? `/api/admin/laboratories/${labId}/submissions/${submission.id}/images/${encodeURIComponent(question.id)}`
                       : undefined
                   }
+                  ideRunEndpoint={question.type === "ide" ? "/api/admin/code-runner/run" : undefined}
                 />
+              )}
+              {question.type === "ide" && (
+                <div className="mt-2">
+                  <IdeRunSummary summary={ideRunSummaries[question.id]} />
+                </div>
               )}
             </div>
 

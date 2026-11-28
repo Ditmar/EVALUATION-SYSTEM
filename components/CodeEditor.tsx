@@ -1,35 +1,28 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useMemo, useRef } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { javascript } from "@codemirror/lang-javascript";
+import { java } from "@codemirror/lang-java";
+import { python } from "@codemirror/lang-python";
 import { StreamLanguage } from "@codemirror/language";
-import { c, clike, cpp, csharp } from "@codemirror/legacy-modes/mode/clike";
-import { python } from "@codemirror/legacy-modes/mode/python";
+import { c, cpp, csharp } from "@codemirror/legacy-modes/mode/clike";
 import { shell } from "@codemirror/legacy-modes/mode/shell";
-import { EditorView } from "@codemirror/view";
-import type { Extension } from "@codemirror/state";
-
-// Minimal keyword set sufficient for readable Java syntax highlighting via the
-// generic C-like legacy mode (there is no first-class CM6 Java language package).
-const JAVA_KEYWORDS = wordsToObject(
-  "abstract assert boolean break byte case catch char class const continue default do double else enum extends final finally float for goto if implements import instanceof int interface long native new package private protected public return short static strictfp super switch synchronized this throw throws transient try void volatile while true false null var record sealed permits yield"
-);
-
-function wordsToObject(words: string): Record<string, boolean> {
-  return Object.fromEntries(words.split(" ").map((w) => [w, true]));
-}
+import { indentWithTab } from "@codemirror/commands";
+import { EditorView, keymap } from "@codemirror/view";
+import { Prec, type Extension } from "@codemirror/state";
 
 function computeExtensionsFor(language: string): Extension[] {
   switch (language) {
     case "typescript":
     case "ts":
       return [javascript({ typescript: true })];
+    // First-class Lezer grammars (accurate indentation, folding, bracket matching).
     case "java":
-      return [StreamLanguage.define(clike({ name: "java", keywords: JAVA_KEYWORDS }))];
+      return [java()];
     case "python":
     case "py":
-      return [StreamLanguage.define(python)];
+      return [python()];
     case "c":
       return [StreamLanguage.define(c)];
     case "cpp":
@@ -84,19 +77,70 @@ interface CodeEditorProps {
   language: string;
   readOnly?: boolean;
   height?: string;
+  /**
+   * IDE mode (the `ide` question type): Tab indents instead of moving focus
+   * (Esc, then Tab, leaves the editor) and Ctrl/Cmd+Enter calls `onRun`.
+   */
+  onRun?: () => void;
+  ideMode?: boolean;
+  /** Off by default: in an evaluation, completions would be hints. */
+  autocomplete?: boolean;
+}
+
+function ideExtensionsFor(language: string, runRef: { current: (() => void) | undefined }): Extension[] {
+  // The run keymap reads the latest callback through a ref, so the returned
+  // array can stay referentially stable for the editor's whole lifetime
+  // (see the reconfigure note on `extensionsFor`).
+  return [
+    ...extensionsFor(language),
+    keymap.of([indentWithTab]),
+    Prec.highest(
+      keymap.of([
+        {
+          key: "Mod-Enter",
+          preventDefault: true,
+          run: () => {
+            runRef.current?.();
+            return true;
+          },
+        },
+      ])
+    ),
+  ];
 }
 
 // memo: read-only statement code blocks keep identical props across keystrokes elsewhere.
-export const CodeEditor = memo(function CodeEditor({ value, onChange, language, readOnly = false, height = "300px" }: CodeEditorProps) {
+export const CodeEditor = memo(function CodeEditor({
+  value,
+  onChange,
+  language,
+  readOnly = false,
+  height = "300px",
+  onRun,
+  ideMode = false,
+  autocomplete,
+}: CodeEditorProps) {
+  const runRef = useRef(onRun);
+  runRef.current = onRun;
+  const extensions = useMemo(
+    () => (ideMode ? ideExtensionsFor(language, runRef) : extensionsFor(language)),
+    [ideMode, language]
+  );
+
   return (
     <CodeMirror
       value={value}
       height={height}
       theme="light"
-      extensions={extensionsFor(language)}
+      extensions={extensions}
       editable={!readOnly}
       onChange={onChange}
-      basicSetup={{ lineNumbers: true, foldGutter: true }}
+      basicSetup={{
+        lineNumbers: true,
+        foldGutter: true,
+        // Keep the existing behavior for plain `code` questions; IDE questions opt in explicitly.
+        ...(ideMode ? { autocompletion: Boolean(autocomplete), tabSize: 4 } : {}),
+      }}
     />
   );
 });

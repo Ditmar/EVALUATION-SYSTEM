@@ -41,6 +41,14 @@ export interface AnswerComponentProps {
    * the student's own endpoint built from `labId`. A no-op for every other type.
    */
   imageUrl?: string;
+  /**
+   * Only used by the `ide` answer type in teacher views: the admin run
+   * endpoint (which receives the question config in the body). Student views
+   * use their lab route, built from `labId`. A no-op for every other type.
+   */
+  ideRunEndpoint?: string;
+  /** Only `ide`: runs already used by the student on this question, for "ejecuciones N/M". */
+  ideRunsUsed?: number;
 }
 
 export type AnswerComponent = ComponentType<AnswerComponentProps>;

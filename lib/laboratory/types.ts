@@ -7,6 +7,8 @@
  * and every API route work exclusively against these types.
  */
 
+import type { IdeAnswerValue, IdeConfig } from "@/lib/code-runner/types";
+
 export type LaboratoryStatus = "draft" | "published" | "archived";
 
 export interface LaboratoryMetadata {
@@ -32,6 +34,7 @@ export const QUESTION_TYPES = [
   "code",
   "github-pr",
   "image",
+  "ide",
 ] as const;
 
 export type QuestionType = (typeof QUESTION_TYPES)[number];
@@ -133,6 +136,16 @@ export interface ImageQuestion extends Omit<BaseQuestion, "evaluator"> {
   evaluator: "manual";
 }
 
+/**
+ * A mini IDE whose code runs on Piston (docs/specs/piston-code-runner.md).
+ * The IDE-specific fields live in `IdeConfig` so exams share the exact same
+ * shape. Never `"automatic"` in v1 — test cases are a planned phase 2.
+ */
+export interface IdeQuestion extends Omit<BaseQuestion, "evaluator">, IdeConfig {
+  type: "ide";
+  evaluator: "manual" | "ai";
+}
+
 export type QuestionDefinition =
   | TextQuestion
   | TextareaQuestion
@@ -143,7 +156,8 @@ export type QuestionDefinition =
   | SelectQuestion
   | CodeQuestion
   | GitHubPullRequestQuestion
-  | ImageQuestion;
+  | ImageQuestion
+  | IdeQuestion;
 
 export const REPOSITORY_PROVIDERS = ["github"] as const;
 export type RepositoryProvider = (typeof REPOSITORY_PROVIDERS)[number];
@@ -161,7 +175,7 @@ export interface RepositoryResource {
 }
 
 /** Answer value shapes, keyed by question id, as stored in a submission's `answers` JSON. */
-export type AnswerValue = string | number | boolean | string[];
+export type AnswerValue = string | number | boolean | string[] | IdeAnswerValue;
 
 export interface RubricDefinition {
   /** The question id this rubric grades (`{{rubric for="..."}}`). */

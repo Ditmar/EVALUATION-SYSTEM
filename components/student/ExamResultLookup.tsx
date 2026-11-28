@@ -17,7 +17,7 @@ interface Option {
 interface ResultQuestion {
   order: number;
   statement: string;
-  type: "SINGLE_CHOICE" | "MULTIPLE_CHOICE" | "CODE";
+  type: "SINGLE_CHOICE" | "MULTIPLE_CHOICE" | "CODE" | "CODE_IDE";
   points: number;
   earnedScore: number;
   isCorrect: boolean | null;
@@ -287,7 +287,7 @@ function GradedResultView({ result, onBack }: { result: GradedResult; onBack: ()
             </ul>
           )}
 
-          {q.type === "CODE" && (
+          {(q.type === "CODE" || q.type === "CODE_IDE") && (
             <div className="space-y-3">
               <div>
                 <p className="mb-1 text-xs font-medium uppercase text-slate-500">Tu respuesta</p>

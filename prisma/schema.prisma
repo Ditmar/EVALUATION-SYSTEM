@@ -16,6 +16,14 @@ enum QuestionType {
   SINGLE_CHOICE
   MULTIPLE_CHOICE
   CODE
+  // Mini IDE ejecutable en Piston (docs/specs/piston-code-runner.md).
+  CODE_IDE
+}
+
+enum CodeRunContext {
+  EXAM
+  LAB
+  ADMIN
 }
 
 enum OnMaxPenalties {
@@ -269,6 +277,9 @@ model Question {
   expectedSolution   String? @db.Text
   rubric             String? @db.Text
   enableAiEvaluation Boolean @default(false)
+  // Solo CODE_IDE: IdeConfig de lib/code-runner/types.ts (mode, entry,
+  // starterFiles, límites...).
+  ideConfig          Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -322,6 +333,7 @@ model ExamAttempt {
   answers        Answer[]
   activityEvents ActivityEvent[]
   screenCaptures ScreenCapture[]
+  codeRuns       CodeRun[]
 
   @@unique([examId, ci])
   @@index([examId, status])
@@ -339,6 +351,9 @@ model Answer {
   selectedOption  String?
   selectedOptions Json?
   codeAnswer      String? @db.Text
+  // Solo CODE_IDE: archivos editables [{ name, content }] y stdin. codeAnswer
+  // se sigue llenando con el archivo principal (CSV y vistas antiguas).
+  codeFiles       Json?
 
   isCorrect      Boolean?
   autoScore      Float?
@@ -470,6 +485,7 @@ model LaboratorySubmission {
 
   aiEvaluations  LaboratoryAiEvaluation[]
   githubAttempts GitHubSubmissionAttempt[]
+  codeRuns       CodeRun[]
 
   @@unique([laboratoryId, studentId])
   @@index([laboratoryId, status])
@@ -636,4 +652,34 @@ model ArticleComment {
 
   @@index([articleId, createdAt])
   @@map("article_comments")
+}
+
+// Historial de ejecuciones del IDE en Piston: cuenta `run-limit` de forma
+// persistente y le muestra al docente cuántas veces corrió el estudiante y con
+// qué resultado. No guarda el código (solo su hash): la respuesta guardada es
+// la fuente de verdad.
+model CodeRun {
+  id           String                @id @default(cuid())
+  context      CodeRunContext
+  attemptId    String?
+  attempt      ExamAttempt?          @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  submissionId String?
+  submission   LaboratorySubmission? @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  userId       String?
+  // Question.id (examen) o el id del placeholder del Markdown (laboratorio).
+  questionId   String
+  language     String
+  version      String
+  filesHash    String
+  status       String
+  exitCode     Int?
+  stdout       String                @db.Text
+  stderr       String                @db.Text
+  compileOut   String?               @db.Text
+  durationMs   Int
+  createdAt    DateTime              @default(now())
+
+  @@index([attemptId, questionId])
+  @@index([submissionId, questionId])
+  @@map("code_runs")
 }
