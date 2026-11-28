@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo, useRef } from "react";
+import { memo, useCallback, useMemo, useRef } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { java } from "@codemirror/lang-java";
@@ -127,6 +127,25 @@ export const CodeEditor = memo(function CodeEditor({
     [ideMode, language]
   );
 
+  // @uiw/react-codemirror reconfigures the whole editor (full re-highlight)
+  // whenever the *identity* of `onChange` or `basicSetup` changes — see its
+  // reconfigure effect. Callers often pass inline arrows, and an inline
+  // `basicSetup` object is new on every render, so every parent re-render
+  // (e.g. each keystroke anywhere in an exam) used to reconfigure every editor
+  // on the page. Keep both referentially stable.
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const stableOnChange = useCallback((next: string) => onChangeRef.current?.(next), []);
+  const basicSetup = useMemo(
+    () => ({
+      lineNumbers: true,
+      foldGutter: true,
+      // Keep the existing behavior for plain `code` questions; IDE questions opt in explicitly.
+      ...(ideMode ? { autocompletion: Boolean(autocomplete), tabSize: 4 } : {}),
+    }),
+    [ideMode, autocomplete]
+  );
+
   return (
     <CodeMirror
       value={value}
@@ -134,13 +153,8 @@ export const CodeEditor = memo(function CodeEditor({
       theme="light"
       extensions={extensions}
       editable={!readOnly}
-      onChange={onChange}
-      basicSetup={{
-        lineNumbers: true,
-        foldGutter: true,
-        // Keep the existing behavior for plain `code` questions; IDE questions opt in explicitly.
-        ...(ideMode ? { autocompletion: Boolean(autocomplete), tabSize: 4 } : {}),
-      }}
+      onChange={onChange ? stableOnChange : undefined}
+      basicSetup={basicSetup}
     />
   );
 });

@@ -192,13 +192,18 @@ export default function ExamAttemptPage({ params }: { params: { token: string } 
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, []);
 
-  function handleAnswerChange(questionId: string, value: AnswerValue) {
-    setAnswers((prev) => ({ ...prev, [questionId]: value }));
-    pendingValues.current[questionId] = value;
-    setSaveStatus("saving");
-    clearTimeout(debounceTimers.current[questionId]);
-    debounceTimers.current[questionId] = setTimeout(() => flushQuestion(questionId), AUTOSAVE_DEBOUNCE_MS);
-  }
+  // Stable identity: QuestionList memoizes each question, which only works if
+  // this callback doesn't change on every render.
+  const handleAnswerChange = useCallback(
+    (questionId: string, value: AnswerValue) => {
+      setAnswers((prev) => ({ ...prev, [questionId]: value }));
+      pendingValues.current[questionId] = value;
+      setSaveStatus("saving");
+      clearTimeout(debounceTimers.current[questionId]);
+      debounceTimers.current[questionId] = setTimeout(() => flushQuestion(questionId), AUTOSAVE_DEBOUNCE_MS);
+    },
+    [flushQuestion]
+  );
 
   /**
    * `force`: al vencer el tiempo se envía igual aunque algo no se haya podido
@@ -249,6 +254,8 @@ export default function ExamAttemptPage({ params }: { params: { token: string } 
     },
     []
   );
+
+  const runEndpoint = `/api/public/exams/${params.token}/run`;
 
   const answeredCount = useMemo(
     () =>
@@ -331,12 +338,12 @@ export default function ExamAttemptPage({ params }: { params: { token: string } 
           intervalMinutes={captureIntervalMinutes}
         >
           <div className="mx-auto max-w-4xl px-4 py-6">
-            <QuestionList questions={questions} answers={answers} onChange={handleAnswerChange} runEndpoint={`/api/public/exams/${params.token}/run`} />
+            <QuestionList questions={questions} answers={answers} onChange={handleAnswerChange} runEndpoint={runEndpoint} />
           </div>
         </ScreenCaptureGate>
       ) : (
         <div className="mx-auto max-w-4xl px-4 py-6">
-          <QuestionList questions={questions} answers={answers} onChange={handleAnswerChange} runEndpoint={`/api/public/exams/${params.token}/run`} />
+          <QuestionList questions={questions} answers={answers} onChange={handleAnswerChange} runEndpoint={runEndpoint} />
         </div>
       )}
 

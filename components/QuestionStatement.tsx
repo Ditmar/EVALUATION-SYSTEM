@@ -1,11 +1,19 @@
 "use client";
 
+import { memo, useMemo } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { extensionsFor } from "@/components/CodeEditor";
 import { parseStatement } from "@/lib/statement";
 
-export function QuestionStatement({ statement, className = "" }: { statement: string; className?: string }) {
-  const segments = parseStatement(statement);
+// Module-level constant on purpose: @uiw/react-codemirror reconfigures (fully
+// re-highlights) an editor whenever `basicSetup` changes identity, and an
+// inline object literal is a new identity on every render.
+const STATEMENT_BASIC_SETUP = { lineNumbers: false, foldGutter: false, highlightActiveLine: false };
+
+// memo: the statement never changes while the student types in an answer, but
+// the exam page re-renders on every keystroke/autosave status change.
+export const QuestionStatement = memo(function QuestionStatement({ statement, className = "" }: { statement: string; className?: string }) {
+  const segments = useMemo(() => parseStatement(statement), [statement]);
 
   return (
     <div className={className}>
@@ -17,7 +25,7 @@ export function QuestionStatement({ statement, className = "" }: { statement: st
               theme="light"
               editable={false}
               extensions={extensionsFor(segment.language)}
-              basicSetup={{ lineNumbers: false, foldGutter: false, highlightActiveLine: false }}
+              basicSetup={STATEMENT_BASIC_SETUP}
             />
           </div>
         ) : (
@@ -28,4 +36,4 @@ export function QuestionStatement({ statement, className = "" }: { statement: st
       )}
     </div>
   );
-}
+});
